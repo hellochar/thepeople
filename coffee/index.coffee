@@ -16,9 +16,10 @@ require [
   class World
     constructor: (@width, @height, @cellFor) ->
       @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
+      ((cell.world = this for cell in row) for row in @map)
       @entities = []
       home = @addEntity(new House(10, 10))
-      @human = @addEntity(new Human(@width/3 | 0, @height/3 | 0, home))
+      @human = @addEntity(new Human(10, 11, home))
 
     addEntity: (entity) =>
       entity.world = this
@@ -29,6 +30,12 @@ require [
       idx = @entities.indexOf(entity)
       @entities.splice(idx, 1)
       entity
+
+    getCell: (x, y) ->
+      if x >= 0 && x < @width && y >= 0 && y < @height
+        @map[y][x]
+      else
+        null
 
     stepAll: () =>
       $(this).trigger("prestep")
@@ -86,17 +93,21 @@ require [
   class Grass extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
-      @spriteLocation = [
-        {
-        x: 13
-        y: 0
-        }
-        {
-        x: 12
-        y: 0
-        }
 
-      ][Math.random() * 2 | 0]
+    spriteLocation:
+      x: 21
+      y: 4
+
+  class Dirt extends Cell
+    constructor: (@x, @y) ->
+      super(@x, @y)
+
+    spriteLocation: () =>
+      base = {x: 21, y: 0}
+      if @world.getCell(@x, @y+1) instanceof Grass
+        return [base, {x: 14, y: 2}]
+      else
+        return base
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
@@ -277,7 +288,10 @@ require [
       @cq.canvas.oncontextmenu = () -> false
 
       @world = new World(60, 30, (x, y) ->
-        new Grass(x, y)
+        if Math.sin(x*y / 100) > .95
+          new Dirt(x, y)
+        else
+          new Grass(x, y)
       )
       for x in [0...@world.width]
         for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
