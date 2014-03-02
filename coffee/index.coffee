@@ -58,6 +58,7 @@ require [
 
   class MoveAction extends Action
     constructor: (@direction) ->
+      throw "Bad direction" if isNaN(@direction.x) or isNaN(@direction.y)
     perform: (human) ->
       human.x += @direction.x
       human.y += @direction.y
@@ -119,7 +120,7 @@ require [
 
   class WalkTo extends Task
     constructor: (@human, @cell, @distanceThreshold = 1) ->
-      throw "Cell undefined" unless @cell
+      throw "Cell is actually a #{@cell}" unless @cell instanceof Cell
       super(@human)
     isComplete: () => @human.distanceTo(@cell) <= @distanceThreshold
 
@@ -139,7 +140,7 @@ require [
   class Eat extends TaskList
     constructor: (@human) ->
       food = _.filter(@human.findCellsWithin(20), (cell) -> cell instanceof Food)
-      closestFood = _.min(food, human.distanceTo)
+      closestFood = if _.isEmpty(food) then null else _.min(food, human.distanceTo)
       if closestFood
         super(@human, [new WalkTo(@human, closestFood), new Consume(@human, closestFood)])
       else super(@human, [])
@@ -180,9 +181,14 @@ require [
         else
           return new RestAction()
 
+    checkConsistency: () =>
+      throw "bad position" unless (@x >= 0 && @x <= @world.width) and
+                                  (@y >= 0 && @y <= @world.height)
+
     step: () =>
       action = @getAction()
       action.perform(this)
+      @checkConsistency()
       @currentAction = action
 
       if @currentTask && @currentTask.isComplete()
