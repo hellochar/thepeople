@@ -11,7 +11,8 @@ require [
   class World
     constructor: (@width, @height, @cellFor) ->
       @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
-      @human = new Human(this, @width/3 | 0, @height/3 | 0)
+      @map[10][10] = home = new House(this, 10, 10)
+      @human = new Human(this, @width/3 | 0, @height/3 | 0, home)
 
 
   class Cell
@@ -30,10 +31,12 @@ require [
     constructor: (@world, @x, @y) ->
       super(@world, @x, @y)
 
+    color: () => "yellow"
+
   class Food extends Cell
     constructor: (@world, @x, @y) ->
       super(@world, @x, @y)
-      @amount = 100
+      @amount = 300
 
     consume: (amount) =>
       @amount -= amount
@@ -49,8 +52,8 @@ require [
   class ConsumeAction extends Action
     constructor: (@food) ->
     perform: (human) ->
-      @food.consume(10)
-      human.hunger -= 10
+      @food.consume(20)
+      human.hunger -= 20
       human.tired += 1
 
   class MoveAction extends Action
@@ -89,6 +92,10 @@ require [
     # returns true/false
     isComplete: () => throw "not implemented"
 
+    # compose this task with another task
+    andThen: (@task) =>
+      return new TaskList(@human, [this, @task])
+
   # A list of Tasks; you do the list by finishing each
   # task sequentially
   class TaskList extends Task
@@ -111,10 +118,10 @@ require [
       return @action
 
   class WalkTo extends Task
-    constructor: (@human, @cell) ->
-      throw "Cell undefined" unless @cell??
+    constructor: (@human, @cell, @distanceThreshold = 1) ->
+      throw "Cell undefined" unless @cell
       super(@human)
-    isComplete: () => @human.distanceTo(@cell) <= 1
+    isComplete: () => @human.distanceTo(@cell) <= @distanceThreshold
 
     nextAction: () =>
       dx = (@cell.x - @human.x)
@@ -131,11 +138,15 @@ require [
 
   class Eat extends TaskList
     constructor: (@human) ->
-      food = _.filter(@human.findCellsWithin(100), (cell) -> cell instanceof Food)
+      food = _.filter(@human.findCellsWithin(20), (cell) -> cell instanceof Food)
       closestFood = _.min(food, human.distanceTo)
       if closestFood
         super(@human, [new WalkTo(@human, closestFood), new Consume(@human, closestFood)])
       else super(@human, [])
+
+  class GoHome extends WalkTo
+    constructor: (@human) ->
+      super(@human, @human.home, 0)
 
   class Sleep extends RepeatedActionTask
     constructor: (@human) ->
@@ -144,7 +155,7 @@ require [
     nextAction: () => new SleepAction()
 
   class Human
-    constructor: (@world, @x, @y) ->
+    constructor: (@world, @x, @y, @home) ->
       @hunger = 0
       @tired = 0
       @currentTask = null
@@ -160,14 +171,14 @@ require [
       if @currentTask
         return @currentTask.nextAction()
       else
-        if @hunger > 100
+        if @hunger > 300
           @currentTask = new Eat(this)
           @currentTask.nextAction()
         else if @tired > 200
-          @currentTask = new Sleep(this)
+          @currentTask = (new GoHome(this)).andThen(new Sleep(this))
           @currentTask.nextAction()
         else
-          return new WanderAction()
+          return new RestAction()
 
     step: () =>
       action = @getAction()
@@ -210,6 +221,10 @@ require [
         @cq.canvas.height = height
         @cq.canvas.width = width
 
+    onMouseDown: (x, y, button) ->
+      cell = @world.map[(y / CELL_PIXEL_SIZE) | 0][(x / CELL_PIXEL_SIZE) | 0]
+      if not @world.human.currentTask
+        @world.human.currentTask = new WalkTo(@world.human, cell, 0)
 
   }
 
