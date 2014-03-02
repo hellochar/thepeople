@@ -2,22 +2,86 @@ require [
   'jquery',
   'underscore'
   'canvasquery'
-], ($, _, cq) ->
+  'action'
+], ($, _, cq, Action) ->
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
-  CELL_PIXEL_SIZE = 20
+  CELL_PIXEL_SIZE = 30
 
   class World
-    constructor: (@width, @height, @cellFor) ->
-      @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
-      @map[10][10] = home = new House(this, 10, 10)
-      @human = new Human(this, @width/3 | 0, @height/3 | 0, home)
+    constructor: (@width, @height) ->
+      @entities = []
+      home = @addEntity(new House(10, 10))
+      @human = @addEntity(new Human(@width/3 | 0, @height/3 | 0, home))
 
+    addEntity: (entity) =>
+      entity.world = this
+      @entities.push(entity)
+      entity
+
+    removeEntity: (entity) =>
+      idx = @entities.indexOf(entity)
+      @entities.splice(idx, 1)
+      entity
+
+    stepAll: () =>
+      $(this).trigger("prestep")
+      for entity in @entities
+        entity.step()
+        entity.checkConsistency()
+      $(this).trigger("poststep")
+
+    drawAll: (cq) =>
+      for entity in @entities
+        entity.draw(cq)
+
+  class Entity
+    constructor: (@x, @y) ->
+
+    distanceTo: (cell) =>
+      Math.abs(cell.x - @x) + Math.abs(cell.y - @y)
+
+    findEntitiesWithin: (manhattanDist) =>
+      _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
+
+    checkConsistency: () =>
+      throw "bad position" unless (@x >= 0 && @x <= @world.width) and
+                                  (@y >= 0 && @y <= @world.height)
+
+    die: () =>
+      $(@world).one("poststep", () =>
+        @world.removeEntity(this)
+      )
+
+    color: () => throw "not implemented"
+
+    step: () => throw "not implemented"
+
+    draw: (cq) =>
+      cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+
+  class House extends Entity
+    color: () => "yellow"
+    step: () =>
+
+  class Food extends Entity
+    constructor: (@x, @y) ->
+      super(@x, @y)
+      @amount = 300
+
+    consume: (amount) =>
+      @amount -= amount
+      if @amount <= 0
+        @die()
+
+    step: () =>
+
+    color: () =>
+      if @amount > 0 then "rgb(0, #{@amount}, 0)" else "grey"
 
   class Cell
     constructor: (@world, @x, @y) ->
-
 
     step: () =>
 
@@ -27,62 +91,6 @@ require [
     draw: (cq) =>
       cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
 
-  class House extends Cell
-    constructor: (@world, @x, @y) ->
-      super(@world, @x, @y)
-
-    color: () => "yellow"
-
-  class Food extends Cell
-    constructor: (@world, @x, @y) ->
-      super(@world, @x, @y)
-      @amount = 300
-
-    consume: (amount) =>
-      @amount -= amount
-      if @amount <= 0
-        @world.map[@y][@x] = new Cell(@world, @x, @y)
-
-    color: () =>
-      if @amount > 0 then "rgb(0, #{@amount}, 0)" else "grey"
-
-  class Action
-    perform: (human) ->
-
-  class ConsumeAction extends Action
-    constructor: (@food) ->
-    perform: (human) ->
-      @food.consume(20)
-      human.hunger -= 20
-      human.tired += 1
-
-  class MoveAction extends Action
-    constructor: (@direction) ->
-      throw "Bad direction" if isNaN(@direction.x) or isNaN(@direction.y)
-    perform: (human) ->
-      human.x += @direction.x
-      human.y += @direction.y
-      human.hunger += 1
-      human.tired += 1
-
-  class WanderAction extends MoveAction
-    constructor: () ->
-      dir = [{ x: -1, y: 0},
-       { x: +1, y: 0},
-       { x: 0, y: -1},
-       { x: 0, y: +1},
-      ][Math.floor(Math.random() * 4)]
-      super(dir)
-
-  class RestAction extends Action
-    perform: (human) ->
-      human.tired += .1
-      human.hunger += 1
-
-  class SleepAction extends Action
-    perform: (human) ->
-      human.tired -= 3
-      human.hunger += .2
 
   # Tasks can be seen as Action generators/iterators/streams
   class Task
@@ -119,15 +127,15 @@ require [
       return @action
 
   class WalkTo extends Task
-    constructor: (@human, @cell, @distanceThreshold = 1) ->
-      throw "Cell is actually a #{@cell}" unless @cell instanceof Cell
+    constructor: (@human, @pt, @distanceThreshold = 1) ->
+      throw "Point is actually a #{@pt}" unless @pt.x && @pt.y
       super(@human)
-    isComplete: () => @human.distanceTo(@cell) <= @distanceThreshold
+    isComplete: () => @human.distanceTo(@pt) <= @distanceThreshold
 
     nextAction: () =>
-      dx = (@cell.x - @human.x)
-      dy = if dx == 0 then (@cell.y - @human.y) else 0
-      return new MoveAction({x: Math.signum(dx), y: Math.signum(dy)})
+      dx = (@pt.x - @human.x)
+      dy = if dx == 0 then (@pt.y - @human.y) else 0
+      return new Action.Move({x: Math.signum(dx), y: Math.signum(dy)})
 
   class Consume extends Task
     constructor: (@human, @food) ->
@@ -135,15 +143,11 @@ require [
     isComplete: () => @food.amount <= 0
 
     nextAction: () =>
-      return new ConsumeAction(@food)
+      return new Action.Consume(@food)
 
   class Eat extends TaskList
-    constructor: (@human) ->
-      food = _.filter(@human.findCellsWithin(20), (cell) -> cell instanceof Food)
-      closestFood = if _.isEmpty(food) then null else _.min(food, human.distanceTo)
-      if closestFood
-        super(@human, [new WalkTo(@human, closestFood), new Consume(@human, closestFood)])
-      else super(@human, [])
+    constructor: (@human, @food) ->
+      super(@human, [new WalkTo(@human, @food), new Consume(@human, @food)])
 
   class GoHome extends WalkTo
     constructor: (@human) ->
@@ -153,84 +157,79 @@ require [
     constructor: (@human) ->
       # super(@human, SleepAction, 40)
     isComplete: () => @human.tired <= 0
-    nextAction: () => new SleepAction()
+    nextAction: () => new Action.Sleep()
 
-  class Human
-    constructor: (@world, @x, @y, @home) ->
+  class Human extends Entity
+    constructor: (@x, @y, @home) ->
+      super(@x, @y)
       @hunger = 0
       @tired = 0
       @currentTask = null
-      @currentAction = new RestAction()
-
-    distanceTo: (cell) =>
-      Math.abs(cell.x - @x) + Math.abs(cell.y - @y)
-
-    findCellsWithin: (manhattanDist) =>
-      _.flatten((cell for cell in row when @distanceTo(cell) <= manhattanDist) for row in @world.map)
+      @currentAction = new Action.Rest()
 
     getAction: () =>
       if @currentTask
         return @currentTask.nextAction()
       else
         if @hunger > 300
-          @currentTask = new Eat(this)
-          @currentTask.nextAction()
-        else if @tired > 200
+          food = _.filter(@findEntitiesWithin(20), (cell) -> cell instanceof Food)
+          closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
+          if closestFood
+            @currentTask = new Eat(this, closestFood)
+            @currentTask.nextAction()
+        if not @currentTask and @tired > 200
           @currentTask = (new GoHome(this)).andThen(new Sleep(this))
           @currentTask.nextAction()
         else
-          return new RestAction()
-
-    checkConsistency: () =>
-      throw "bad position" unless (@x >= 0 && @x <= @world.width) and
-                                  (@y >= 0 && @y <= @world.height)
+          return new Action.Rest()
 
     step: () =>
       action = @getAction()
       action.perform(this)
-      @checkConsistency()
       @currentAction = action
-
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
 
+    color: () => "red"
+
     draw: (cq) =>
-      cq.fillStyle("red").fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
-      cq.fillStyle("white").fillText("#{@currentAction.constructor.name}, #{@hunger} hunger, #{@tired} tired", @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
+      super(cq)
+      cq.fillStyle("white").fillText("#{if @currentAction.toString() then @currentAction.toString() + ", " else ""}#{@hunger} hunger, #{@tired} tired", @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
   framework = {
     setup: () ->
       @cq = cq().framework(this, this)
       @cq.canvas.oncontextmenu = () -> false
+
+      @world = new World(60, 30)
+      @world.addEntity(new Food(i % 60, (i/60) | 0)) for i in [0...(@world.width * @world.height)] by 96
+
+      @cq.canvas.width = CELL_PIXEL_SIZE * @world.width
+      @cq.canvas.height = CELL_PIXEL_SIZE * @world.height
       @cq.appendTo("body")
-      @world = new World(60, 30, (x, y) ->
-        if (x + y*40) % 56 == 0
-          new Food(this, x, y)
-        else
-          new Cell(this, x, y)
-      )
 
     onStep: (delta, time) ->
-      ((cell.step() for cell in row) for row in @world.map)
-      @world.human.step()
+      @world.stepAll()
 
     onRender: () ->
       @cq.clear("grey")
-      ((cell.draw(@cq) for cell in row) for row in @world.map)
-      @world.human.draw(@cq)
+      @world.drawAll(@cq)
 
-    # window resize
-    onResize: (width, height) ->
-      # resize canvas with window
-      # change camera transform
-      if @cq
-        @cq.canvas.height = height
-        @cq.canvas.width = width
+    # # window resize
+    # onResize: (width, height) ->
+    #   # resize canvas with window
+    #   # change camera transform
+    #   if @cq
+    #     @cq.canvas.height = height
+    #     @cq.canvas.width = width
 
     onMouseDown: (x, y, button) ->
-      cell = @world.map[(y / CELL_PIXEL_SIZE) | 0][(x / CELL_PIXEL_SIZE) | 0]
+      pt = {
+        y: (y / CELL_PIXEL_SIZE) | 0
+        x: (x / CELL_PIXEL_SIZE) | 0
+      }
       if not @world.human.currentTask
-        @world.human.currentTask = new WalkTo(@world.human, cell, 0)
+        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
   }
 
