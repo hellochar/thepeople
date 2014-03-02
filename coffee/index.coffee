@@ -7,7 +7,7 @@ require [
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
-  CELL_PIXEL_SIZE = 30
+  CELL_PIXEL_SIZE = 32
 
   class World
     constructor: (@width, @height) ->
@@ -37,6 +37,12 @@ require [
         entity.draw(cq)
 
   class Entity
+    @SPRITESHEET = (
+      s = new Image()
+      s.src = "/images/hyptosis_tile-art-batch-1.png"
+      s.TILE_SIZE = 32
+      s
+    )
     constructor: (@x, @y) ->
 
     distanceTo: (cell) =>
@@ -54,15 +60,21 @@ require [
         @world.removeEntity(this)
       )
 
-    color: () => throw "not implemented"
+    spriteLocation: () => throw "not implemented"
 
     step: () => throw "not implemented"
 
     draw: (cq) =>
-      cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      # cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      {x: sx, y: sy} = @spriteLocation()
+      tileSize = Entity.SPRITESHEET.TILE_SIZE
+      cq.drawImage(Entity.SPRITESHEET, sx * tileSize, sy * tileSize, tileSize, tileSize, @x * CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
 
   class House extends Entity
-    color: () => "yellow"
+    spriteLocation: () =>
+      x: 1
+      y: 16
+
     step: () =>
 
   class Food extends Entity
@@ -77,20 +89,9 @@ require [
 
     step: () =>
 
-    color: () =>
-      if @amount > 0 then "rgb(0, #{@amount}, 0)" else "grey"
-
-  class Cell
-    constructor: (@world, @x, @y) ->
-
-    step: () =>
-
-    color: () =>
-      "black"
-
-    draw: (cq) =>
-      cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
-
+    spriteLocation: () =>
+      x: 14
+      y: 15
 
   # Tasks can be seen as Action generators/iterators/streams
   class Task
@@ -128,7 +129,7 @@ require [
 
   class WalkTo extends Task
     constructor: (@human, @pt, @distanceThreshold = 1) ->
-      throw "Point is actually a #{@pt}" unless @pt.x && @pt.y
+      throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       super(@human)
     isComplete: () => @human.distanceTo(@pt) <= @distanceThreshold
 
@@ -190,7 +191,9 @@ require [
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
 
-    color: () => "red"
+    spriteLocation: () =>
+      x: 1
+      y: 26
 
     draw: (cq) =>
       super(cq)
