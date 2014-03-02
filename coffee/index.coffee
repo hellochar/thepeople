@@ -5,12 +5,17 @@ require [
   'action'
 ], ($, _, cq, Action) ->
 
+
+  value = (arg) ->
+    if _.isFunction(arg) then arg() else arg
+
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
   CELL_PIXEL_SIZE = 32
 
   class World
-    constructor: (@width, @height) ->
+    constructor: (@width, @height, @cellFor) ->
+      @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
       @entities = []
       home = @addEntity(new House(10, 10))
       @human = @addEntity(new Human(@width/3 | 0, @height/3 | 0, home))
@@ -33,16 +38,67 @@ require [
       $(this).trigger("poststep")
 
     drawAll: (cq) =>
+      ((cell.draw(cq) for cell in row) for row in @map)
       for entity in @entities
         entity.draw(cq)
 
-  class Entity
+  class Drawable
     @SPRITESHEET = (
       s = new Image()
       s.src = "/images/hyptosis_tile-art-batch-1.png"
       s.TILE_SIZE = 32
       s
     )
+    # {
+    #   -- sprite sheet location
+    #   x, y,
+    #
+    #   -- dimensions of the sprite sheet cells
+    #   width: 1, height: 1
+    #
+    #   -- offset to draw on the map
+    #   dx: 0 (float)
+    #   dy: 0 (float)
+    # }
+    # or an array of those objects
+    spriteLocation: () => throw "not implemented"
+
+    draw: (cq) =>
+      sprites = value(@spriteLocation)
+      if not _.isArray(sprites)
+        sprites = [sprites]
+
+      tileSize = Entity.SPRITESHEET.TILE_SIZE
+
+      for sprite in sprites
+        sx = sprite.x
+        sy = sprite.y
+        width = sprite.width || 1
+        height = sprite.height || 1
+        dx = sprite.dx || 0
+        dy = sprite.dy || 0
+        cq.drawImage(Entity.SPRITESHEET, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
+
+
+  class Cell extends Drawable
+    constructor: (@x, @y) ->
+
+  class Grass extends Cell
+    constructor: (@x, @y) ->
+      super(@x, @y)
+      @spriteLocation = [
+        {
+        x: 13
+        y: 0
+        }
+        {
+        x: 12
+        y: 0
+        }
+
+      ][Math.random() * 2 | 0]
+
+  class Entity extends Drawable
     constructor: (@x, @y) ->
 
     distanceTo: (cell) =>
@@ -60,20 +116,36 @@ require [
         @world.removeEntity(this)
       )
 
-    spriteLocation: () => throw "not implemented"
-
     step: () => throw "not implemented"
 
-    draw: (cq) =>
-      # cq.fillStyle(@color()).fillRect(@x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
-      {x: sx, y: sy} = @spriteLocation()
-      tileSize = Entity.SPRITESHEET.TILE_SIZE
-      cq.drawImage(Entity.SPRITESHEET, sx * tileSize, sy * tileSize, tileSize, tileSize, @x * CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
 
   class House extends Entity
-    spriteLocation: () =>
+    spriteLocation: [
+      {
       x: 1
       y: 16
+      }
+      {
+      x: 0
+      y: 15
+      dx: -1
+      }
+      {
+        x: 4
+        y: 13
+        dx: -1
+        dy: -1
+      }
+      {
+        x: 5
+        y: 13
+        dx: 0
+        dy: -1
+      }
+    ]
+
+    draw: (cq) =>
+      super(cq)
 
     step: () =>
 
@@ -204,8 +276,12 @@ require [
       @cq = cq().framework(this, this)
       @cq.canvas.oncontextmenu = () -> false
 
-      @world = new World(60, 30)
-      @world.addEntity(new Food(i % 60, (i/60) | 0)) for i in [0...(@world.width * @world.height)] by 96
+      @world = new World(60, 30, (x, y) ->
+        new Grass(x, y)
+      )
+      for x in [0...@world.width]
+        for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
+          @world.addEntity(new Food(x, y))
 
       @cq.canvas.width = CELL_PIXEL_SIZE * @world.width
       @cq.canvas.height = CELL_PIXEL_SIZE * @world.height
