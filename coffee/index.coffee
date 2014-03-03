@@ -104,7 +104,7 @@ require [
   class Cell extends Drawable
     constructor: (@x, @y) ->
 
-  class RandomSprite extends Drawable
+  class RandomSpriteCell extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
       sprites = value(@sprites)
@@ -149,6 +149,11 @@ require [
       else
         {x: 21, y: 0}
 
+  class Wall extends RandomSpriteCell
+    constructor: (@x, @y) ->
+      super(@x, @y)
+
+    sprites: [ {x: 22, y: 6}, {x: 23, y: 6} ]
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
@@ -349,11 +354,10 @@ require [
 
   framework = {
     setup: () ->
-      @cq = cq().framework(this, this)
-      @cq.canvas.oncontextmenu = () -> false
-
       @world = new World(60, 30, (x, y) ->
-        if Math.sin(x*y / 100) > .90
+        if y % 12 == 0
+          new Wall(x, y)
+        else if Math.sin(x*y / 100) > .90
           new DryGrass(x, y)
         else
           new Grass(x, y)
@@ -362,33 +366,56 @@ require [
         for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
           @world.addEntity(new Food(x, y))
 
-      @cq.canvas.width = CELL_PIXEL_SIZE * @world.width
-      @cq.canvas.height = CELL_PIXEL_SIZE * @world.height
+      @camera = {
+        x: 0
+        y: 0
+      }
+
+      @keys = {}
+
+      @cq = cq().framework(this, this)
+      @cq.canvas.oncontextmenu = () -> false
       @cq.appendTo("body")
 
     onStep: (delta, time) ->
       @world.stepAll()
+      mapping = {
+        w: () => @camera.y += 1
+        s: () => @camera.y -= 1
+        a: () => @camera.x += 1
+        d: () => @camera.x -= 1
+      }
+      for key, fn of mapping
+        fn() if @keys[key]
 
     onRender: () ->
       @cq.clear("black")
+      @cq.save()
+      @cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
       @world.drawAll(@cq)
+      @cq.restore()
 
-    # # window resize
-    # onResize: (width, height) ->
-    #   # resize canvas with window
-    #   # change camera transform
-    #   if @cq
-    #     @cq.canvas.height = height
-    #     @cq.canvas.width = width
+    # window resize
+    onResize: (width, height) ->
+      # resize canvas with window
+      # change camera transform
+      if @cq
+        @cq.canvas.height = height
+        @cq.canvas.width = width
 
     onMouseDown: (x, y, button) ->
       pt = {
-        y: (y / CELL_PIXEL_SIZE) | 0
-        x: (x / CELL_PIXEL_SIZE) | 0
+        x: x / CELL_PIXEL_SIZE - @camera.x | 0
+        y: y / CELL_PIXEL_SIZE - @camera.y | 0
       }
       if not @world.human.currentTask
         @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
+    # keyboard events
+    onKeyDown: (key) ->
+      @keys[key] = true
+    onKeyUp: (key) ->
+      delete @keys[key]
   }
 
   $(() ->
