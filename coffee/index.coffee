@@ -1,10 +1,12 @@
+window.asdf = (x, y) ->
+  [(x/32) | 0, (y/32) | 0]
+
 require [
   'jquery',
   'underscore'
   'canvasquery'
   'action'
 ], ($, _, cq, Action) ->
-
 
   value = (arg) ->
     if _.isFunction(arg) then arg() else arg
@@ -103,11 +105,31 @@ require [
       super(@x, @y)
 
     spriteLocation: () =>
-      base = {x: 21, y: 0}
-      if @world.getCell(@x, @y+1) instanceof Grass
-        return [base, {x: 14, y: 2}]
+      left = (@world.cellFor(@x-1, @y) instanceof Grass)
+      right = (@world.cellFor(@x+1, @y) instanceof Grass)
+      up = (@world.cellFor(@x, @y-1) instanceof Grass)
+      down = (@world.cellFor(@x, @y+1) instanceof Grass)
+      if left
+        if up
+          {x: 24, y: 5}
+        else if down
+          {x: 24, y: 4}
+        else
+          {x: 22, y: 4}
+      else if right
+        if up
+          {x: 23, y: 5}
+        else if down
+          {x: 23, y: 4}
+        else
+          {x: 20, y: 4}
+      else if down #we've accounted for down-left and down-right already
+        {x: 21, y: 3}
+      else if up # same w/ up-left and up-right
+        {x: 21, y: 5}
       else
-        return base
+        {x: 21, y: 0}
+
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
@@ -288,7 +310,7 @@ require [
       @cq.canvas.oncontextmenu = () -> false
 
       @world = new World(60, 30, (x, y) ->
-        if Math.sin(x*y / 100) > .95
+        if Math.sin(x*y / 100) > .90
           new Dirt(x, y)
         else
           new Grass(x, y)
