@@ -11,6 +11,9 @@ require [
   value = (arg) ->
     if _.isFunction(arg) then arg() else arg
 
+  withinRect = (x, y, xmin, xmax, ymin, ymax) ->
+    return (x >= xmin && x <= xmax && y >= ymin && y <= ymax)
+
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
   Math.distance = (a, b) ->
@@ -38,11 +41,26 @@ require [
       @entities.splice(idx, 1)
       entity
 
-    getCell: (x, y) ->
-      if x >= 0 && x < @width && y >= 0 && y < @height
+    withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
+
+    getCell: (x, y) =>
+      if @withinMap(x, y)
         @map[y][x]
       else
         null
+
+    canOccupy: (x, y) =>
+      return false if not @withinMap(x, y)
+      cellHitbox = @getCell(x, y).getHitbox()
+      return false if cellHitbox isnt null
+
+      for e in @entities
+        hitbox = e.getHitbox()
+        continue if not hitbox
+        return false if withinRect(x, y, e.x - hitbox.x, e.x, e.y - hitbox.y, e.y)
+
+      return true
+
 
     stepAll: () =>
       $(this).trigger("prestep")
@@ -86,6 +104,18 @@ require [
     # }
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
+
+    # optionally, declare a hitbox
+    # which looks like {x: dx, y: dy} which specifies how far left and up the hitbox should go
+    # true is an alias for {x: 0, y: 0}
+
+    getHitbox: () =>
+      if not value(@hitbox)
+        null
+      else
+        hitbox = value(@hitbox)
+        if hitbox == true
+          hitbox = {x: 0, y: 0}
 
     draw: (cq) =>
       sprites = value(@spriteLocation)
@@ -167,6 +197,8 @@ require [
     constructor: (@x, @y) ->
       super(@x, @y)
 
+    hitbox: true
+
     maybeDryGrassSprite: () =>
       down = (@world.cellFor(@x, @y+1) instanceof DryGrass)
       if down
@@ -191,8 +223,7 @@ require [
       _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
 
     checkConsistency: () =>
-      throw "bad position" unless (@x >= 0 && @x <= @world.width) and
-                                  (@y >= 0 && @y <= @world.height)
+      throw "bad position" unless @world.withinMap(@x, @y)
 
     isDead: () => not _.contains(@world.entities, this)
 
@@ -200,6 +231,8 @@ require [
       $(@world).one("poststep", () =>
         @world.removeEntity(this)
       )
+
+    hitbox: true
 
     step: () => throw "not implemented"
 
@@ -228,6 +261,8 @@ require [
         dy: -1
       }
     ]
+
+    hitbox: {x: -1, y: -1}
 
     draw: (cq) =>
       super(cq)
@@ -314,7 +349,9 @@ require [
           return path.actions
         else
           for action in ACTIONS
-            queue.push(path.addSegment(action))
+            newPath = path.addSegment(action)
+            if @human.world.canOccupy(newPath.endState.x, newPath.endState.y)
+              queue.push(newPath)
       return null
 
     constructor: (@human, @pt, @distanceThreshold = 1) ->
@@ -322,7 +359,10 @@ require [
       @pt = _.pick(@pt, "x", "y")
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       @actions = @bfs(_.pick(@human, "x", "y"))
-      throw "no path!" unless @actions
+      if not @actions
+        console.log("no path!")
+        @actions = []
+      # throw "no path!" unless @actions
 
     isComplete: () => _.isEmpty(@actions)
 
@@ -355,8 +395,8 @@ require [
     constructor: (@x, @y, @home) ->
       super(@x, @y)
       @sightRange = 10
-      @hunger = 300
-      @tired = 150
+      @hunger = 0
+      @tired = 0
       @currentTask = null
       @currentAction = new Action.Rest()
 
@@ -414,7 +454,7 @@ require [
   framework = {
     setup: () ->
       @world = new World(60, 30, (x, y) ->
-        if y % 12 <= 1
+        if y % 12 <= 1 && (x + y) % 30 > 5
           new Wall(x, y)
         else if Math.sin(x*y / 100) > .90
           new Grass(x, y)
@@ -423,7 +463,8 @@ require [
       )
       for x in [0...@world.width]
         for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-          @world.addEntity(new Food(x, y))
+          if @world.canOccupy(x, y)
+            @world.addEntity(new Food(x, y))
 
       @camera = {
         x: 0
