@@ -47,9 +47,11 @@ require [
       $(this).trigger("poststep")
 
     drawAll: (cq) =>
-      ((cell.draw(cq) for cell in row) for row in @map)
-      for entity in @entities
-        entity.draw(cq)
+      # ((cell.draw(cq) for cell in row) for row in @map)
+      # for entity in @entities
+      #   entity.draw(cq)
+      cell.draw(cq) for cell in @human.findCellsWithin(@human.sightRange)
+      entity.draw(cq) for entity in @human.findEntitiesWithin(@human.sightRange)
 
   class Drawable
     @SPRITESHEET = (
@@ -80,6 +82,7 @@ require [
       tileSize = Entity.SPRITESHEET.TILE_SIZE
 
       for sprite in sprites
+        throw "bad sprite #{sprite}" unless _.isObject(sprite)
         sx = sprite.x
         sy = sprite.y
         width = sprite.width || 1
@@ -92,15 +95,22 @@ require [
   class Cell extends Drawable
     constructor: (@x, @y) ->
 
+  class RandomSprite extends Drawable
+    constructor: (@x, @y) ->
+      super(@x, @y)
+      sprites = value(@sprites)
+      idx = Math.random() * sprites.length | 0
+      @spriteLocation = sprites[idx]
+
+    sprites: () -> throw "not implemented"
+
   class Grass extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
 
-    spriteLocation:
-      x: 21
-      y: 4
+    spriteLocation: { x: 21, y: 4 }
 
-  class Dirt extends Cell
+  class DryGrass extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
 
@@ -136,6 +146,9 @@ require [
 
     distanceTo: (cell) =>
       Math.abs(cell.x - @x) + Math.abs(cell.y - @y)
+
+    findCellsWithin: (manhattanDist) =>
+      _.flatten((cell for cell in row when @distanceTo(cell) <= manhattanDist) for row in @world.map)
 
     findEntitiesWithin: (manhattanDist) =>
       _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
@@ -268,6 +281,7 @@ require [
   class Human extends Entity
     constructor: (@x, @y, @home) ->
       super(@x, @y)
+      @sightRange = 10
       @hunger = 0
       @tired = 0
       @currentTask = null
@@ -278,7 +292,7 @@ require [
         return @currentTask.nextAction()
       else
         if @hunger > 300
-          food = _.filter(@findEntitiesWithin(20), (cell) -> cell instanceof Food)
+          food = _.filter(@findEntitiesWithin(@sightRange), (cell) -> cell instanceof Food)
           closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
           if closestFood
             @currentTask = new Eat(this, closestFood)
@@ -311,7 +325,7 @@ require [
 
       @world = new World(60, 30, (x, y) ->
         if Math.sin(x*y / 100) > .90
-          new Dirt(x, y)
+          new DryGrass(x, y)
         else
           new Grass(x, y)
       )
