@@ -25,6 +25,7 @@ require [
 
     addEntity: (entity) =>
       entity.world = this
+      $(this).on("poststep", entity.poststep) if entity.poststep
       @entities.push(entity)
       entity
 
@@ -50,8 +51,16 @@ require [
       # ((cell.draw(cq) for cell in row) for row in @map)
       # for entity in @entities
       #   entity.draw(cq)
-      cell.draw(cq) for cell in @human.findCellsWithin(@human.sightRange)
-      entity.draw(cq) for entity in @human.findEntitiesWithin(@human.sightRange)
+      cell.draw(cq) for cell in @human.getVisibleCells()
+      entity.draw(cq) for entity in @human.getVisibleEntities()
+
+      cq.context.globalAlpha = 0.5
+      # now draw only the remembered ones
+      cell.draw(cq) for cell in @human.rememberedCells()
+      e.draw(cq) for e in @human.rememberedEntities()
+
+      cq.context.globalAlpha = 1.0
+
 
   class Drawable
     @SPRITESHEET = (
@@ -156,6 +165,8 @@ require [
     checkConsistency: () =>
       throw "bad position" unless (@x >= 0 && @x <= @world.width) and
                                   (@y >= 0 && @y <= @world.height)
+
+    isDead: () => not _.contains(@world.entities, this)
 
     die: () =>
       $(@world).one("poststep", () =>
@@ -287,12 +298,21 @@ require [
       @currentTask = null
       @currentAction = new Action.Rest()
 
+      @seenCells = []
+      @seenEntities = []
+
+    rememberedCells: () => _.difference(@seenCells, @getVisibleCells())
+    rememberedEntities: () => _.difference(@seenEntities, @getVisibleEntities())
+
+    getVisibleCells: () => @findCellsWithin(@sightRange)
+    getVisibleEntities: () => @findEntitiesWithin(@sightRange)
+
     getAction: () =>
       if @currentTask
         return @currentTask.nextAction()
       else
         if @hunger > 300
-          food = _.filter(@findEntitiesWithin(@sightRange), (cell) -> cell instanceof Food)
+          food = _.filter(@seenEntities, (cell) -> cell instanceof Food)
           closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
           if closestFood
             @currentTask = new Eat(this, closestFood)
@@ -309,6 +329,15 @@ require [
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
+
+    poststep: () =>
+      @seenCells = _.union(@seenCells, @getVisibleCells())
+
+      #you should see it but you don't
+      @seenEntities = _.reject(@seenEntities, (entity) =>
+        @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
+      )
+      @seenEntities = _.union(@seenEntities, @getVisibleEntities())
 
     spriteLocation: () =>
       x: 1
@@ -341,7 +370,7 @@ require [
       @world.stepAll()
 
     onRender: () ->
-      @cq.clear("grey")
+      @cq.clear("black")
       @world.drawAll(@cq)
 
     # # window resize
