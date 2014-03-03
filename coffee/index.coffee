@@ -123,7 +123,7 @@ require [
     constructor: (@x, @y) ->
       super(@x, @y)
 
-    spriteLocation: () =>
+    maybeGrassSprite: () =>
       left = (@world.cellFor(@x-1, @y) instanceof Grass)
       right = (@world.cellFor(@x+1, @y) instanceof Grass)
       up = (@world.cellFor(@x, @y-1) instanceof Grass)
@@ -147,13 +147,32 @@ require [
       else if up # same w/ up-left and up-right
         {x: 21, y: 5}
       else
-        {x: 21, y: 0}
+        null
 
-  class Wall extends RandomSpriteCell
+    maybeWallSprite: () =>
+      down = (@world.cellFor(@x, @y+1) instanceof Wall)
+      if down
+        {x: 23, y: 10}
+      else
+        null
+
+    spriteLocation: () =>
+      @maybeGrassSprite() || @maybeWallSprite() || {x: 21, y: 0}
+
+  class Wall extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
 
-    sprites: [ {x: 22, y: 6}, {x: 23, y: 6} ]
+    maybeDryGrassSprite: () =>
+      down = (@world.cellFor(@x, @y+1) instanceof DryGrass)
+      if down
+        {x: 23, y: 13}
+      else
+        null
+
+    spriteLocation: () =>
+      # [ {x: 22, y: 6}, {x: 23, y: 6}, {x: 22, y: 7}, {x: 23, y: 7} ]
+      @maybeDryGrassSprite() || {x: 22, y: 6}
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
@@ -355,12 +374,12 @@ require [
   framework = {
     setup: () ->
       @world = new World(60, 30, (x, y) ->
-        if y % 12 == 0
+        if y % 12 <= 1
           new Wall(x, y)
         else if Math.sin(x*y / 100) > .90
-          new DryGrass(x, y)
-        else
           new Grass(x, y)
+        else
+          new DryGrass(x, y)
       )
       for x in [0...@world.width]
         for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
@@ -408,8 +427,7 @@ require [
         x: x / CELL_PIXEL_SIZE - @camera.x | 0
         y: y / CELL_PIXEL_SIZE - @camera.y | 0
       }
-      if not @world.human.currentTask
-        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+      @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
     # keyboard events
     onKeyDown: (key) ->
