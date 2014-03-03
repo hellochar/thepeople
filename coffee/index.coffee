@@ -13,6 +13,10 @@ require [
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
+  Math.distance = (a, b) ->
+    Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+
+
   CELL_PIXEL_SIZE = 32
 
   class World
@@ -178,7 +182,7 @@ require [
     constructor: (@x, @y) ->
 
     distanceTo: (cell) =>
-      Math.abs(cell.x - @x) + Math.abs(cell.y - @y)
+      Math.distance(cell, this)
 
     findCellsWithin: (manhattanDist) =>
       _.flatten((cell for cell in row when @distanceTo(cell) <= manhattanDist) for row in @world.map)
@@ -270,7 +274,8 @@ require [
 
     nextAction: () =>
       # trim off completed actions
-      @subtasks.shift() while @currentTask().isComplete()
+      while @currentTask().isComplete()
+        @subtasks.shift()
       return @currentTask().nextAction()
 
   class RepeatedActionTask extends Task
@@ -281,15 +286,48 @@ require [
       return @action
 
   class WalkTo extends Task
+    ACTIONS = [{ x: -1, y: 0},
+       { x: +1, y: 0},
+       { x: 0, y: -1},
+       { x: 0, y: +1},
+      ]
+
+    # returns an array of actions to get from start to within the distance threshold
+    bfs: (@start) =>
+      # immutable class representing a path to get to an end state
+      class Path
+        constructor: (@endState, @actions = []) ->
+        addSegment: (action) =>
+          newLoc = {x: @endState.x + action.x, y: @endState.y + action.y}
+          new Path(newLoc, @actions.concat([action]))
+
+      # queue is an array of path objects
+      queue = [new Path(@start)]
+      visited = {} # keys are JSON.stringify({x, y}) objects
+      while not _.isEmpty(queue)
+        path = queue.shift()
+
+        continue if visited[JSON.stringify(path.endState)]
+        visited[JSON.stringify(path.endState)] = true
+
+        if Math.distance(path.endState, @pt) <= @distanceThreshold
+          return path.actions
+        else
+          for action in ACTIONS
+            queue.push(path.addSegment(action))
+      return null
+
     constructor: (@human, @pt, @distanceThreshold = 1) ->
-      throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       super(@human)
-    isComplete: () => @human.distanceTo(@pt) <= @distanceThreshold
+      @pt = _.pick(@pt, "x", "y")
+      throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
+      @actions = @bfs(_.pick(@human, "x", "y"))
+      throw "no path!" unless @actions
+
+    isComplete: () => _.isEmpty(@actions)
 
     nextAction: () =>
-      dx = (@pt.x - @human.x)
-      dy = if dx == 0 then (@pt.y - @human.y) else 0
-      return new Action.Move({x: Math.signum(dx), y: Math.signum(dy)})
+      return new Action.Move(@actions.shift())
 
   class Consume extends Task
     constructor: (@human, @food) ->
@@ -317,8 +355,8 @@ require [
     constructor: (@x, @y, @home) ->
       super(@x, @y)
       @sightRange = 10
-      @hunger = 0
-      @tired = 0
+      @hunger = 300
+      @tired = 150
       @currentTask = null
       @currentAction = new Action.Rest()
 
@@ -332,6 +370,8 @@ require [
     getVisibleEntities: () => @findEntitiesWithin(@sightRange)
 
     getAction: () =>
+      if @currentTask && @currentTask.isComplete()
+        @currentTask = null
       if @currentTask
         return @currentTask.nextAction()
       else
@@ -340,10 +380,10 @@ require [
           closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
           if closestFood
             @currentTask = new Eat(this, closestFood)
-            @currentTask.nextAction()
+            return @currentTask.nextAction()
         if not @currentTask and @tired > 200
           @currentTask = (new GoHome(this)).andThen(new Sleep(this))
-          @currentTask.nextAction()
+          return @currentTask.nextAction()
         else
           return new Action.Rest()
 
@@ -412,6 +452,9 @@ require [
       @cq.save()
       @cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
       @world.drawAll(@cq)
+
+      pt = @cellPosition(@mouseX, @mouseY)
+      @cq.fillStyle("red").globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
       @cq.restore()
 
     # window resize
@@ -422,12 +465,17 @@ require [
         @cq.canvas.height = height
         @cq.canvas.width = width
 
+    cellPosition: (canvasX, canvasY) ->
+      x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
+      y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
+
     onMouseDown: (x, y, button) ->
-      pt = {
-        x: x / CELL_PIXEL_SIZE - @camera.x | 0
-        y: y / CELL_PIXEL_SIZE - @camera.y | 0
-      }
+      pt = @cellPosition(x, y)
       @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+
+    onMouseMove: (x, y) ->
+      @mouseX = x
+      @mouseY = y
 
     # keyboard events
     onKeyDown: (key) ->
