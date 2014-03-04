@@ -35,8 +35,8 @@ require [
 
     addEntity: (entity) =>
       entity.world = this
-      $(this).on("poststep", entity.poststep) if entity.poststep
       @entities.push(entity)
+      entity.initialize()
       entity
 
     removeEntity: (entity) =>
@@ -150,6 +150,8 @@ require [
         spritesheet = Spritesheets.get(spritesheetName)
         tileSize = 32
         cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
+
+    initialize: () ->
 
 
   class Cell extends Drawable
@@ -433,10 +435,38 @@ require [
       # Should be the last Action you took; used by the Renderer to display info about what you're doing
       @currentAction = new Action.Rest()
 
+    initialize: () =>
       # All cells you have seen previously, but cannot currently see
       @rememberedCells = []
       # All entities you have seen previously, but cannot currently see
       @rememberedEntities = []
+
+      lastVisibleCells = []
+      lastVisibleEntities = []
+      $(@world).on("prestep", () =>
+        lastVisibleCells = @getVisibleCells()
+        lastVisibleEntities = @getVisibleEntities()
+      )
+      $(@world).on("poststep", () =>
+        # to update the rememberedCells
+        # 1. remove cells remembered last frame but visible now
+        # 2. add in cells visible last frame but not visible now
+        @rememberedCells = _.difference(@rememberedCells, @getVisibleCells())
+
+        @rememberedCells = @rememberedCells.concat(_.difference(lastVisibleCells, @getVisibleCells()))
+
+        # to update seenEntities
+        # 1. remove entities remembered last frame that *should* be visible now but aren't
+        # 2. remove entities remembered last frame but visible now
+        # 3. add in entities visible last frame but not visible now
+        @rememberedEntities = _.reject(@rememberedEntities, (entity) =>
+          @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
+        )
+
+        @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
+        @rememberedEntities = @rememberedEntities.concat(_.difference(lastVisibleEntities, @getVisibleEntities()))
+      )
+
 
     getVisibleCells: () => @findCellsWithin(@sightRange)
     getVisibleEntities: () => @findEntitiesWithin(@sightRange)
@@ -479,33 +509,11 @@ require [
         return new Action.Rest()
 
     step: () =>
-      @lastVisibleCells = @getVisibleCells()
-      @lastVisibleEntities = @getVisibleEntities()
-
       action = @getAction()
       action.perform(this)
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
-
-    poststep: () =>
-      # to update the rememberedCells
-      # 1. remove cells remembered last frame but visible now
-      # 2. add in cells visible last frame but not visible now
-      @rememberedCells = _.difference(@rememberedCells, @getVisibleCells())
-
-      @rememberedCells = @rememberedCells.concat(_.difference(@lastVisibleCells, @getVisibleCells()))
-
-      # to update seenEntities
-      # 1. remove entities remembered last frame that *should* be visible now but aren't
-      # 2. remove entities remembered last frame but visible now
-      # 3. add in entities visible last frame but not visible now
-      @rememberedEntities = _.reject(@rememberedEntities, (entity) =>
-        @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
-      )
-
-      @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
-      @rememberedEntities = @rememberedEntities.concat(_.difference(@lastVisibleEntities, @getVisibleEntities()))
 
     spriteLocation: () =>
       x: 9
