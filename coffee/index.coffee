@@ -9,6 +9,8 @@ require [
   'action'
 ], ($, _, Stats, cq, Action) ->
 
+  'use strict'
+
   value = (arg) ->
     if _.isFunction(arg) then arg() else arg
 
@@ -85,8 +87,8 @@ require [
 
       cq.context.globalAlpha = 0.5
       # now draw only the remembered ones
-      cell.draw(cq) for cell in @human.rememberedCells()
-      e.draw(cq) for e in @human.rememberedEntities()
+      cell.draw(cq) for cell in @human.rememberedCells
+      e.draw(cq) for e in @human.rememberedEntities
 
       cq.context.globalAlpha = 1.0
 
@@ -414,9 +416,8 @@ require [
 
       @seenCells = []
       @seenEntities = []
-
-    rememberedCells: () => _.difference(@seenCells, @getVisibleCells())
-    rememberedEntities: () => _.difference(@seenEntities, @getVisibleEntities())
+      @rememberedCells = []
+      @rememberedEntities = []
 
     getVisibleCells: () => @findCellsWithin(@sightRange)
     getVisibleEntities: () => @findEntitiesWithin(@sightRange)
@@ -448,12 +449,20 @@ require [
 
     poststep: () =>
       @seenCells = _.union(@seenCells, @getVisibleCells())
+      @rememberedCells = _.difference(@seenCells, @getVisibleCells())
+
+      # for cell in @getVisibleCells()
+      #   @seenCells.push(cell) unless _.contains(@seenCells, cell)
 
       #you should see it but you don't
       @seenEntities = _.reject(@seenEntities, (entity) =>
         @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
       )
+
       @seenEntities = _.union(@seenEntities, @getVisibleEntities())
+      @rememberedEntities =_.difference(@seenEntities, @getVisibleEntities()) 
+      # for entity in @getVisibleEntities()
+      #   @seenEntities.push(cell) unless _.contains(@seenEntities, entity)
 
     spriteLocation: () =>
       x: 1
