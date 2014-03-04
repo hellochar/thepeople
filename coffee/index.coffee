@@ -4,9 +4,10 @@ window.asdf = (x, y) ->
 require [
   'jquery',
   'underscore'
+  'stats'
   'canvasquery'
   'action'
-], ($, _, cq, Action) ->
+], ($, _, Stats, cq, Action) ->
 
   value = (arg) ->
     if _.isFunction(arg) then arg() else arg
@@ -51,13 +52,19 @@ require [
 
     canOccupy: (x, y) =>
       return false if not @withinMap(x, y)
-      cellHitbox = @getCell(x, y).getHitbox()
+      cellHitbox = @getCell(x, y).getHitboxes()
       return false if cellHitbox isnt null
 
       for e in @entities
-        hitbox = e.getHitbox()
-        continue if not hitbox
-        return false if withinRect(x, y, e.x - hitbox.x, e.x, e.y - hitbox.y, e.y)
+        hitboxes = e.getHitboxes()
+        continue if not hitboxes
+        hitboxes = [hitboxes] unless _.isArray(hitboxes)
+        for hitbox in hitboxes
+          xmin = e.x + hitbox.x
+          ymin = e.y + hitbox.y
+          width = hitbox.width || 1
+          height = hitbox.height || 1
+          return false if withinRect(x, y, xmin, xmin + width - 1, ymin, ymin + height - 1)
 
       return true
 
@@ -106,16 +113,17 @@ require [
     spriteLocation: () => throw "not implemented"
 
     # optionally, declare a hitbox
-    # which looks like {x: dx, y: dy} which specifies how far left and up the hitbox should go
+    # which looks like an array of {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
     # true is an alias for {x: 0, y: 0}
 
-    getHitbox: () =>
+    getHitboxes: () =>
       if not value(@hitbox)
         null
       else
         hitbox = value(@hitbox)
         if hitbox == true
-          hitbox = {x: 0, y: 0}
+          hitbox = {x: 0, y: 0, width: 1}
+        hitbox
 
     draw: (cq) =>
       sprites = value(@spriteLocation)
@@ -262,7 +270,11 @@ require [
       }
     ]
 
-    hitbox: {x: -1, y: -1}
+    hitbox: [
+      {x: -1, y: -1, width: 1, height: 2}
+      {x: 0, y: -1}
+    ]
+
 
     draw: (cq) =>
       super(cq)
@@ -477,7 +489,23 @@ require [
       @cq.canvas.oncontextmenu = () -> false
       @cq.appendTo("body")
 
+      @statsStep = new Stats()
+      @statsStep.setMode(0)
+      @statsStep.domElement.style.position = 'absolute'
+      @statsStep.domElement.style.left = '0px'
+      @statsStep.domElement.style.top = '0px'
+
+      @statsRender = new Stats()
+      @statsRender.setMode(0)
+      @statsRender.domElement.style.position = 'absolute'
+      @statsRender.domElement.style.left = '0px'
+      @statsRender.domElement.style.top = '50px'
+
+      $("body").append( @statsStep.domElement )
+      $("body").append( @statsRender.domElement )
+
     onStep: (delta, time) ->
+      @statsStep.begin()
       @world.stepAll()
       mapping = {
         w: () => @camera.y += 1
@@ -487,16 +515,20 @@ require [
       }
       for key, fn of mapping
         fn() if @keys[key]
+      @statsStep.end()
 
     onRender: () ->
+      @statsRender.begin()
       @cq.clear("black")
       @cq.save()
       @cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
       @world.drawAll(@cq)
 
       pt = @cellPosition(@mouseX, @mouseY)
-      @cq.fillStyle("red").globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      if @world.canOccupy(pt.x, pt.y) then @cq.fillStyle("green") else @cq.fillStyle("red")
+      @cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
       @cq.restore()
+      @statsRender.end()
 
     # window resize
     onResize: (width, height) ->
