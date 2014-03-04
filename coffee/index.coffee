@@ -54,8 +54,7 @@ require [
 
     canOccupy: (x, y) =>
       return false if not @withinMap(x, y)
-      cellHitbox = @getCell(x, y).getHitboxes()
-      return false if cellHitbox isnt null
+      return false if @getCell(x, y).constructor.colliding
       return false if @entityAt(x, y) isnt null
 
       return true
@@ -65,8 +64,6 @@ require [
 
       for e in @entities
         hitboxes = e.getHitboxes()
-        continue if not hitboxes
-        hitboxes = [hitboxes] unless _.isArray(hitboxes)
         for hitbox in hitboxes
           xmin = e.x + hitbox.x
           ymin = e.y + hitbox.y
@@ -129,19 +126,6 @@ require [
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
 
-    # optionally, declare a hitbox
-    # which looks like an array of {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
-    # true is an alias for {x: 0, y: 0}
-
-    getHitboxes: () =>
-      if not value(@hitbox)
-        null
-      else
-        hitbox = value(@hitbox)
-        if hitbox == true
-          hitbox = {x: 0, y: 0, width: 1}
-        hitbox
-
     draw: (cq) =>
       sprites = value(@spriteLocation)
       if not _.isArray(sprites)
@@ -165,6 +149,8 @@ require [
 
   class Cell extends Drawable
     constructor: (@x, @y) ->
+
+    @colliding: false
 
   class RandomSpriteCell extends Cell
     constructor: (@x, @y) ->
@@ -225,7 +211,7 @@ require [
     constructor: (@x, @y) ->
       super(@x, @y)
 
-    hitbox: true
+    @colliding: true
 
     maybeDryGrassSprite: () =>
       down = (@world.cellFor(@x, @y+1) instanceof DryGrass)
@@ -252,7 +238,7 @@ require [
 
     checkConsistency: () =>
       throw "bad position" unless @world.withinMap(@x, @y)
-      throw "on top of another entity" if @world.entityAt(@x, @y) isnt this
+      # throw "on top of another entity" if @world.entityAt(@x, @y) isnt this
 
     isDead: () => not _.contains(@world.entities, this)
 
@@ -261,7 +247,12 @@ require [
         @world.removeEntity(this)
       )
 
-    hitbox: true
+    # optionally, declare a hitbox VALUE on the class
+    # hitbox is an array of {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
+    @hitbox: [{x: 0, y: 0, width: 1, height: 1}]
+
+    # returns an array of hitboxes
+    getHitboxes: () => @constructor.hitbox
 
     step: () => throw "not implemented"
 
@@ -291,7 +282,7 @@ require [
       }
     ]
 
-    hitbox: [
+    @hitbox: [
       {x: -1, y: -1, width: 1, height: 2}
       {x: 0, y: -1}
     ]
@@ -413,7 +404,7 @@ require [
   class Consume extends Task
     constructor: (@human, @food) ->
       super(@human)
-    isComplete: () => @food.amount <= 0
+    isComplete: () => @food.amount <= 0 or @human.hunger <= 0
 
     nextAction: () =>
       return new Action.Consume(@food)
@@ -506,7 +497,7 @@ require [
 
     closestVisible: (entityType) =>
       entities = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (e) -> e instanceof entityType)
-      if entities
+      if not _.isEmpty(entities)
         _.min(entities, @distanceTo)
       else
         null
