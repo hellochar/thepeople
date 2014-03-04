@@ -372,7 +372,7 @@ require [
       super(@human)
       @pt = _.pick(@pt, "x", "y")
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      if not @human.world.canOccupy(@pt.x, @pt.y)
+      if @distanceThreshold is 0 and not @human.world.canOccupy(@pt.x, @pt.y)
         console.log("cannot occupy that space!")
         @actions = []
       else
@@ -479,7 +479,7 @@ require [
 
     draw: (cq) =>
       super(cq)
-      cq.fillStyle("white").fillText("#{if @currentAction.toString() then @currentAction.toString() + ", " else ""}#{@hunger} hunger, #{@tired} tired", @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
+      cq.fillStyle("red").font('normal 20pt arial').fillText("#{if @currentAction.toString() then @currentAction.toString() + ", " else ""}#{@hunger | 0} hunger, #{@tired | 0} tired", @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
   framework = {
     setup: () ->
