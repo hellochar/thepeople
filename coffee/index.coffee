@@ -372,11 +372,15 @@ require [
       super(@human)
       @pt = _.pick(@pt, "x", "y")
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      @actions = @bfs(_.pick(@human, "x", "y"))
-      if not @actions
-        console.log("no path!")
+      if not @human.world.canOccupy(@pt.x, @pt.y)
+        console.log("cannot occupy that space!")
         @actions = []
-      # throw "no path!" unless @actions
+      else
+        @actions = @bfs(_.pick(@human, "x", "y"))
+        if not @actions
+          console.log("no path!")
+          @actions = []
+        # throw "no path!" unless @actions
 
     isComplete: () => _.isEmpty(@actions)
 
@@ -414,9 +418,9 @@ require [
       @currentTask = null
       @currentAction = new Action.Rest()
 
-      @seenCells = []
-      @seenEntities = []
+      # All cells you have seen previously, but cannot currently see
       @rememberedCells = []
+      # All entities you have seen previously, but cannot currently see
       @rememberedEntities = []
 
     getVisibleCells: () => @findCellsWithin(@sightRange)
@@ -429,7 +433,7 @@ require [
         return @currentTask.nextAction()
       else
         if @hunger > 300
-          food = _.filter(@seenEntities, (cell) -> cell instanceof Food)
+          food = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (cell) -> cell instanceof Food)
           closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
           if closestFood
             @currentTask = new Eat(this, closestFood)
@@ -441,6 +445,9 @@ require [
           return new Action.Rest()
 
     step: () =>
+      @lastVisibleCells = @getVisibleCells()
+      @lastVisibleEntities = @getVisibleEntities()
+
       action = @getAction()
       action.perform(this)
       @currentAction = action
@@ -448,21 +455,23 @@ require [
         @currentTask = null
 
     poststep: () =>
-      @seenCells = _.union(@seenCells, @getVisibleCells())
-      @rememberedCells = _.difference(@seenCells, @getVisibleCells())
+      # to update the rememberedCells
+      # 1. remove cells remembered last frame but visible now
+      # 2. add in cells visible last frame but not visible now
+      @rememberedCells = _.difference(@rememberedCells, @getVisibleCells())
 
-      # for cell in @getVisibleCells()
-      #   @seenCells.push(cell) unless _.contains(@seenCells, cell)
+      @rememberedCells = @rememberedCells.concat(_.difference(@lastVisibleCells, @getVisibleCells()))
 
-      #you should see it but you don't
-      @seenEntities = _.reject(@seenEntities, (entity) =>
+      # to update seenEntities
+      # 1. remove entities remembered last frame that *should* be visible now but aren't
+      # 2. remove entities remembered last frame but visible now
+      # 3. add in entities visible last frame but not visible now
+      @rememberedEntities = _.reject(@rememberedEntities, (entity) =>
         @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
       )
 
-      @seenEntities = _.union(@seenEntities, @getVisibleEntities())
-      @rememberedEntities =_.difference(@seenEntities, @getVisibleEntities()) 
-      # for entity in @getVisibleEntities()
-      #   @seenEntities.push(cell) unless _.contains(@seenEntities, entity)
+      @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
+      @rememberedEntities = @rememberedEntities.concat(_.difference(@lastVisibleEntities, @getVisibleEntities()))
 
     spriteLocation: () =>
       x: 1
@@ -474,7 +483,7 @@ require [
 
   framework = {
     setup: () ->
-      @world = new World(60, 30, (x, y) ->
+      @world = new World(600, 30, (x, y) ->
         if y % 12 <= 1 && (x + y) % 30 > 5
           new Wall(x, y)
         else if Math.sin(x*y / 100) > .90
@@ -553,7 +562,8 @@ require [
 
     onMouseDown: (x, y, button) ->
       pt = @cellPosition(x, y)
-      @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+      if @world.canOccupy(pt.x, pt.y)
+        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
     onMouseMove: (x, y) ->
       @mouseX = x
