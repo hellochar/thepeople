@@ -12,9 +12,6 @@ require [
 
   'use strict'
 
-  value = (arg) ->
-    if _.isFunction(arg) then arg() else arg
-
   withinRect = (x, y, xmin, xmax, ymin, ymax) ->
     return (x >= xmin && x <= xmax && y >= ymin && y <= ymax)
 
@@ -33,6 +30,7 @@ require [
 
   class World
     constructor: (@width, @height, @cellFor) ->
+      @age = 0
       @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
       ((cell.world = this for cell in row) for row in @map)
       @entities = []
@@ -41,6 +39,7 @@ require [
 
     addEntity: (entity) =>
       entity.world = this
+      entity.birth = @age
       @entities.push(entity)
       entity.initialize()
       entity
@@ -64,6 +63,8 @@ require [
       return false if @entityAt(x, y) isnt null and @entityAt(x, y) isnt ignoredEntity
       return true
 
+    # TODO make this O(1) by caching entityAt's and only updating them
+    # when an Entity moves
     entityAt: (x, y) =>
       return null if not @withinMap(x, y)
 
@@ -84,6 +85,7 @@ require [
         entity.step()
         entity.checkConsistency()
       $(this).trigger("poststep")
+      @age += 1
 
     drawAll: (cq) =>
       # ((cell.draw(cq) for cell in row) for row in @map)
@@ -111,6 +113,11 @@ require [
       @mapping[name]
 
   class Drawable
+    constructor: (@x, @y) ->
+      @timeCreated = new Date().valueOf()
+
+    animationMillis: () => (new Date()).valueOf() - @timeCreated
+
     # {
     #   -- sprite sheet location
     #   x, y,
@@ -128,7 +135,7 @@ require [
     spriteLocation: () => throw "not implemented"
 
     draw: (cq) =>
-      sprites = value(@spriteLocation)
+      sprites = @spriteLocation()
       if not _.isArray(sprites)
         sprites = [sprites]
 
@@ -150,23 +157,15 @@ require [
 
   class Cell extends Drawable
     constructor: (@x, @y) ->
+      super(@x, @y)
 
     @colliding: false
-
-  class RandomSpriteCell extends Cell
-    constructor: (@x, @y) ->
-      super(@x, @y)
-      sprites = value(@sprites)
-      idx = Math.random() * sprites.length | 0
-      @spriteLocation = sprites[idx]
-
-    sprites: () -> throw "not implemented"
 
   class Grass extends Cell
     constructor: (@x, @y) ->
       super(@x, @y)
 
-    spriteLocation: { x: 21, y: 4 }
+    spriteLocation: () => { x: 21, y: 4 }
 
   class DryGrass extends Cell
     constructor: (@x, @y) ->
@@ -227,6 +226,9 @@ require [
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
+      super(@x, @y)
+
+    age: () => @world.age - @birth
 
     distanceTo: (cell) =>
       Math.distance(cell, this)
@@ -274,7 +276,7 @@ require [
 
 
   class House extends Entity
-    spriteLocation: [
+    spriteLocation: () => [
       {
       x: 1
       y: 16
@@ -589,7 +591,8 @@ require [
         @currentTask = null
 
     spriteLocation: () =>
-      x: 9
+      spriteIdx = (@animationMillis() / 333) % 4 | 0
+      x: [10, 9, 10, 11][spriteIdx]
       y: 4
       spritesheet: "characters"
 
@@ -702,6 +705,8 @@ require [
         pt = @cellPosition(@mouseX, @mouseY)
         house = tryConstruct(@world.human, House, [pt.x, pt.y])
         if house
+          # TODO this is only a preventative measure
+          # need to add the actual logic inside the Task itself to ensure that it doesn't happen
           @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
     onKeyUp: (key) ->
       delete @keys[key]
