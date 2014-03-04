@@ -93,13 +93,17 @@ require [
       cq.context.globalAlpha = 1.0
 
 
+  class Spritesheets
+    @mapping: {}
+
+    @get: (name, tileSize = 32) ->
+      if not @mapping[name]
+        s = new Image()
+        s.src = "/images/spritesheets/#{name}.png"
+        @mapping[name] = s
+      @mapping[name]
+
   class Drawable
-    @SPRITESHEET = (
-      s = new Image()
-      s.src = "/images/hyptosis_tile-art-batch-1.png"
-      s.TILE_SIZE = 32
-      s
-    )
     # {
     #   -- sprite sheet location
     #   x, y,
@@ -110,6 +114,8 @@ require [
     #   -- offset to draw on the map
     #   dx: 0 (float)
     #   dy: 0 (float)
+    #
+    #   spritesheet: "tiles1"
     # }
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
@@ -132,8 +138,6 @@ require [
       if not _.isArray(sprites)
         sprites = [sprites]
 
-      tileSize = Entity.SPRITESHEET.TILE_SIZE
-
       for sprite in sprites
         throw "bad sprite #{sprite}" unless _.isObject(sprite)
         sx = sprite.x
@@ -142,7 +146,10 @@ require [
         height = sprite.height || 1
         dx = sprite.dx || 0
         dy = sprite.dy || 0
-        cq.drawImage(Entity.SPRITESHEET, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
+        spritesheetName = sprite.spritesheet || "tiles1"
+        spritesheet = Spritesheets.get(spritesheetName)
+        tileSize = 32
+        cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
 
 
   class Cell extends Drawable
@@ -413,9 +420,17 @@ require [
     constructor: (@x, @y, @home) ->
       super(@x, @y)
       @sightRange = 10
+
+      # How hungry you are.
       @hunger = 0
+
+      # How tired you are. Will affect your action taking capabilities if you're too tired
       @tired = 0
+
+      # Your current task
       @currentTask = null
+
+      # Should be the last Action you took; used by the Renderer to display info about what you're doing
       @currentAction = new Action.Rest()
 
       # All cells you have seen previously, but cannot currently see
@@ -426,23 +441,42 @@ require [
     getVisibleCells: () => @findCellsWithin(@sightRange)
     getVisibleEntities: () => @findEntitiesWithin(@sightRange)
 
-    getAction: () =>
-      if @currentTask && @currentTask.isComplete()
-        @currentTask = null
-      if @currentTask
-        return @currentTask.nextAction()
-      else
-        if @hunger > 300
+    # returns an array of () => (Task or falsy)
+    possibleTasks: () =>
+      tasks = [ () => @currentTask ]
+
+      if @hunger > 300
+        tasks.push( () =>
           food = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (cell) -> cell instanceof Food)
-          closestFood = if _.isEmpty(food) then null else _.min(food, @distanceTo)
-          if closestFood
-            @currentTask = new Eat(this, closestFood)
-            return @currentTask.nextAction()
-        if not @currentTask and @tired > 200
-          @currentTask = (new GoHome(this)).andThen(new Sleep(this))
-          return @currentTask.nextAction()
-        else
-          return new Action.Rest()
+          if food
+            closestFood = _.min(food, @distanceTo)
+            new Eat(this, closestFood)
+          else
+            false
+        )
+
+      if @tired > 200
+        tasks.push( () =>
+          (new GoHome(this)).andThen(new Sleep(this))
+        )
+
+      tasks
+
+    getAction: () =>
+      tasks = @possibleTasks()
+
+      # find the first task that isn't complete and start doing it
+      for taskFn in tasks
+        task = taskFn()
+        if task && not task.isComplete()
+          doableTask = task
+          break
+      if doableTask
+        @currentTask = doableTask
+        @currentTask.nextAction()
+      else
+        @currentTask = null
+        return new Action.Rest()
 
     step: () =>
       @lastVisibleCells = @getVisibleCells()
@@ -474,8 +508,9 @@ require [
       @rememberedEntities = @rememberedEntities.concat(_.difference(@lastVisibleEntities, @getVisibleEntities()))
 
     spriteLocation: () =>
-      x: 1
-      y: 26
+      x: 9
+      y: 4
+      spritesheet: "characters"
 
     draw: (cq) =>
       super(cq)
