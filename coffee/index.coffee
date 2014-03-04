@@ -30,8 +30,8 @@ require [
       @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
       ((cell.world = this for cell in row) for row in @map)
       @entities = []
-      home = @addEntity(new House(10, 10))
-      @human = @addEntity(new Human(10, 11, home))
+      @addEntity(new House(10, 10))
+      @human = @addEntity(new Human(10, 11))
 
     addEntity: (entity) =>
       entity.world = this
@@ -321,6 +321,8 @@ require [
     andThen: (@task) =>
       return new TaskList(@human, [this, @task])
 
+    toString: () => @constructor.name
+
   # A list of Tasks; you do the list by finishing each
   # task sequentially
   class TaskList extends Task
@@ -335,6 +337,8 @@ require [
       while @currentTask().isComplete()
         @subtasks.shift()
       return @currentTask().nextAction()
+
+    toString: () => @currentTask().toString()
 
   class RepeatedActionTask extends Task
     constructor: (@human, @action, @times) ->
@@ -410,7 +414,7 @@ require [
 
   class GoHome extends WalkTo
     constructor: (@human) ->
-      super(@human, @human.home, 0)
+      super(@human, @human.closestVisible(House), 0)
 
   class Sleep extends RepeatedActionTask
     constructor: (@human) ->
@@ -419,7 +423,7 @@ require [
     nextAction: () => new Action.Sleep()
 
   class Human extends Entity
-    constructor: (@x, @y, @home) ->
+    constructor: (@x, @y) ->
       super(@x, @y)
       @sightRange = 10
 
@@ -471,15 +475,21 @@ require [
     getVisibleCells: () => @findCellsWithin(@sightRange)
     getVisibleEntities: () => @findEntitiesWithin(@sightRange)
 
+    closestVisible: (entityType) =>
+      entities = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (e) -> e instanceof entityType)
+      if entities
+        _.min(entities, @distanceTo)
+      else
+        null
+
     # returns an array of () => (Task or falsy)
     possibleTasks: () =>
       tasks = [ () => @currentTask ]
 
       if @hunger > 300
         tasks.push( () =>
-          food = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (cell) -> cell instanceof Food)
-          if food
-            closestFood = _.min(food, @distanceTo)
+          closestFood = @closestVisible(Food)
+          if closestFood
             new Eat(this, closestFood)
           else
             false
@@ -522,7 +532,10 @@ require [
 
     draw: (cq) =>
       super(cq)
-      cq.fillStyle("red").font('normal 20pt arial').fillText("#{if @currentAction.toString() then @currentAction.toString() + ", " else ""}#{@hunger | 0} hunger, #{@tired | 0} tired", @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
+      actionString = if @currentAction.toString() then @currentAction.toString() + ", " else ""
+      taskString = if @currentTask then @currentTask.toString() + ", " else ""
+      text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
+      cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
   framework = {
     setup: () ->
