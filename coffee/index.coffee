@@ -18,6 +18,12 @@ require [
   withinRect = (x, y, xmin, xmax, ymin, ymax) ->
     return (x >= xmin && x <= xmax && y >= ymin && y <= ymax)
 
+  intersectRect = (r1, r2) ->
+    return !(r2.x > r1.x + r1.width ||
+             r2.x + r2.width < r1.x ||
+             r2.y > r1.height + r1.y ||
+             r2.height + r2.y < r1.y)
+
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
   Math.distance = (a, b) ->
@@ -52,11 +58,10 @@ require [
       else
         null
 
-    canOccupy: (x, y) =>
+    isUnoccupied: (x, y, ignoredEntity = null) =>
       return false if not @withinMap(x, y)
       return false if @getCell(x, y).constructor.colliding
-      return false if @entityAt(x, y) isnt null
-
+      return false if @entityAt(x, y) isnt null and @entityAt(x, y) isnt ignoredEntity
       return true
 
     entityAt: (x, y) =>
@@ -64,12 +69,8 @@ require [
 
       for e in @entities
         hitboxes = e.getHitboxes()
-        for hitbox in hitboxes
-          xmin = e.x + hitbox.x
-          ymin = e.y + hitbox.y
-          width = hitbox.width || 1
-          height = hitbox.height || 1
-          if withinRect(x, y, xmin, xmin + width - 1, ymin, ymin + height - 1)
+        for rect in hitboxes
+          if withinRect(x, y, rect.x, rect.x + rect.width - 1, rect.y, rect.y + rect.height - 1)
             return e
 
       return null
@@ -251,8 +252,23 @@ require [
     # hitbox is an array of {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
     @hitbox: [{x: 0, y: 0, width: 1, height: 1}]
 
-    # returns an array of hitboxes
-    getHitboxes: () => @constructor.hitbox
+    # returns an array of rectangles (x, y, width, height) associated with a specified pt (by default this Entity's location)
+    getHitboxes: (x = @x, y = @y) =>
+      hitboxBlueprints = @constructor.hitbox
+      for hitbox in hitboxBlueprints
+        x: x + hitbox.x
+        y: y + hitbox.y
+        width: hitbox.width || 1
+        height: hitbox.height || 1
+
+    # returns true iff this Entity can occupy the given location
+    canOccupy: (x, y) =>
+      for rect in @getHitboxes(x, y)
+        for x in [rect.x...rect.x + rect.width]
+          for y in [rect.y...rect.y + rect.height]
+            return false if not @world.isUnoccupied(x, y, this)
+      return true
+
 
     step: () => throw "not implemented"
 
@@ -311,7 +327,11 @@ require [
 
   # Tasks can be seen as Action generators/iterators/streams
   class Task
-    constructor: (@human) ->
+    constructor: (@human, nextAction = undefined, isComplete = undefined, toString = undefined) ->
+      @nextAction = nextAction if nextAction
+      @isComplete = isComplete if isComplete
+      @toString = toString if toString
+
     # Returns the next Action to take for this Task
     # invariant: nextAction() is only called when isComplete() is false
     nextAction: () => throw "Not implemented"
@@ -378,7 +398,7 @@ require [
         else
           for action in ACTIONS
             newPath = path.addSegment(action)
-            if @human.world.canOccupy(newPath.endState.x, newPath.endState.y)
+            if @human.canOccupy(newPath.endState.x, newPath.endState.y)
               queue.push(newPath)
       return null
 
@@ -386,7 +406,7 @@ require [
       super(@human)
       @pt = _.pick(@pt, "x", "y")
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      if @distanceThreshold is 0 and not @human.world.canOccupy(@pt.x, @pt.y)
+      if @distanceThreshold is 0 and not @human.canOccupy(@pt.x, @pt.y)
         console.log("cannot occupy that space!")
         @actions = []
       else
@@ -423,6 +443,14 @@ require [
 
     isComplete: () => @human.tired <= 0
     nextAction: () => new Action.Sleep()
+
+  # returns a task or null if you can't build there
+  tryBuild = (@human, @entityType, @arguments) ->
+    entity = construct(@entityType, @arguments)
+    if entity.canOccupy(entity.x, entity.y)
+      new Build(@human, @entityType, @arguments)
+    else
+      null
 
   class Build extends Task
     constructor: (@human, @entityType, @arguments) ->
@@ -569,8 +597,8 @@ require [
       )
       for x in [0...@world.width]
         for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-          if @world.canOccupy(x, y)
-            @world.addEntity(new Food(x, y))
+          food = new Food(x, y)
+          @world.addEntity(food)
 
       @camera = {
         x: 0
@@ -619,7 +647,7 @@ require [
       @world.drawAll(@cq)
 
       pt = @cellPosition(@mouseX, @mouseY)
-      if @world.canOccupy(pt.x, pt.y) then @cq.fillStyle("green") else @cq.fillStyle("red")
+      if @world.human.canOccupy(pt.x, pt.y) then @cq.fillStyle("green") else @cq.fillStyle("red")
       @cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
       @cq.restore()
       @statsRender.end()
@@ -636,10 +664,19 @@ require [
       x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
       y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
 
+    # clickedBehavior: (x, y) ->
+    #   entity = @world.entityAt(x, y)
+    #   if entity isnt null
+    #     {
+    #       House: () => new 
+    #     }
+
     onMouseDown: (x, y, button) ->
       pt = @cellPosition(x, y)
-      if @world.canOccupy(pt.x, pt.y)
-        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+      if button == 2 # right mouse button
+        if @world.human.canOccupy(pt.x, pt.y)
+          @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+      else if button == 0 # left mouse button
 
     onMouseMove: (x, y) ->
       @mouseX = x
