@@ -516,6 +516,10 @@ require [
     onStep: (delta, time) ->
       @statsStep.begin()
       @world.stepAll()
+      @statsStep.end()
+
+    onRender: () ->
+      @statsRender.begin()
       mapping = {
         w: () => @camera.y += 1
         s: () => @camera.y -= 1
@@ -524,10 +528,6 @@ require [
       }
       for key, fn of mapping
         fn() if @keys[key]
-      @statsStep.end()
-
-    onRender: () ->
-      @statsRender.begin()
       @cq.clear("black")
       @cq.save()
       @cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
