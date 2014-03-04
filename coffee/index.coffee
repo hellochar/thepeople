@@ -262,11 +262,11 @@ require [
         height: hitbox.height || 1
 
     # returns true iff this Entity can occupy the given location
-    canOccupy: (x, y) =>
+    canOccupy: (x, y, world = @world) =>
       for rect in @getHitboxes(x, y)
         for x in [rect.x...rect.x + rect.width]
           for y in [rect.y...rect.y + rect.height]
-            return false if not @world.isUnoccupied(x, y, this)
+            return false if not world.isUnoccupied(x, y, this)
       return true
 
 
@@ -444,18 +444,33 @@ require [
     isComplete: () => @human.tired <= 0
     nextAction: () => new Action.Sleep()
 
-  # returns a task or null if you can't build there
-  tryBuild = (@human, @entityType, @arguments) ->
-    entity = construct(@entityType, @arguments)
-    if entity.canOccupy(entity.x, entity.y)
-      new Build(@human, @entityType, @arguments)
+  # returns an Entity or null if you can't build there
+  tryConstruct = (human, entityType, args) ->
+    entity = construct(entityType, args)
+    if entity.canOccupy(entity.x, entity.y, human.world)
+      entity
     else
       null
 
   class Build extends Task
-    constructor: (@human, @entityType, @arguments) ->
+    constructor: (@human, @entity) ->
       super(@human)
-      @turnsLeft = 10
+      # Optimally we would have a "tryBuild" method that returns
+      # the Build task if successful, or otherwise returns null
+      #
+      # you could have a generic tryTask method like:
+      #
+      # tryTask(@human, Build, construct)
+      #
+      # its implementation would wrap the constructor call in a try BadTask/catch,
+      # and then the protocol is to have Task constructors throw BadTask
+      #
+      # instead we'll just ad-hoc some way to not actually "build" the building for now
+      if @entity
+        @turnsLeft = 10
+      else
+        # make this task already isComplete(), so nextAction() should never be called
+        @turnsLeft = 0
 
     class BuildAction extends Action
       constructor: (@buildTask) ->
@@ -464,7 +479,7 @@ require [
         human.tired += 2
         human.hunger += 1
         if @buildTask.isComplete()
-          entity = construct(@buildTask.entityType, @buildTask.arguments)
+          entity = @buildTask.entity
           human.world.addEntity(entity)
 
     isComplete: () => @turnsLeft == 0
@@ -673,10 +688,8 @@ require [
 
     onMouseDown: (x, y, button) ->
       pt = @cellPosition(x, y)
-      if button == 2 # right mouse button
-        if @world.human.canOccupy(pt.x, pt.y)
-          @world.human.currentTask = new WalkTo(@world.human, pt, 0)
-      else if button == 0 # left mouse button
+      if @world.human.canOccupy(pt.x, pt.y)
+        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
     onMouseMove: (x, y) ->
       @mouseX = x
@@ -687,7 +700,9 @@ require [
       @keys[key] = true
       if key is 'b'
         pt = @cellPosition(@mouseX, @mouseY)
-        @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, House, [pt.x, pt.y])))
+        house = tryConstruct(@world.human, House, [pt.x, pt.y])
+        if house
+          @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
     onKeyUp: (key) ->
       delete @keys[key]
   }
