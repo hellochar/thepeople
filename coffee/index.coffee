@@ -6,8 +6,9 @@ require [
   'underscore'
   'stats'
   'canvasquery'
+  'construct'
   'action'
-], ($, _, Stats, cq, Action) ->
+], ($, _, Stats, cq, construct, Action) ->
 
   'use strict'
 
@@ -21,7 +22,6 @@ require [
 
   Math.distance = (a, b) ->
     Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-
 
   CELL_PIXEL_SIZE = 32
 
@@ -56,6 +56,12 @@ require [
       return false if not @withinMap(x, y)
       cellHitbox = @getCell(x, y).getHitboxes()
       return false if cellHitbox isnt null
+      return false if @entityAt(x, y) isnt null
+
+      return true
+
+    entityAt: (x, y) =>
+      return null if not @withinMap(x, y)
 
       for e in @entities
         hitboxes = e.getHitboxes()
@@ -66,9 +72,12 @@ require [
           ymin = e.y + hitbox.y
           width = hitbox.width || 1
           height = hitbox.height || 1
-          return false if withinRect(x, y, xmin, xmin + width - 1, ymin, ymin + height - 1)
+          if withinRect(x, y, xmin, xmin + width - 1, ymin, ymin + height - 1)
+            return e
 
-      return true
+      return null
+
+
 
 
     stepAll: () =>
@@ -243,6 +252,7 @@ require [
 
     checkConsistency: () =>
       throw "bad position" unless @world.withinMap(@x, @y)
+      throw "on top of another entity" if @world.entityAt(@x, @y) isnt this
 
     isDead: () => not _.contains(@world.entities, this)
 
@@ -416,11 +426,30 @@ require [
     constructor: (@human) ->
       super(@human, @human.closestVisible(House), 0)
 
-  class Sleep extends RepeatedActionTask
+  class Sleep extends Task
     constructor: (@human) ->
-      # super(@human, SleepAction, 40)
+      super(@human)
+
     isComplete: () => @human.tired <= 0
     nextAction: () => new Action.Sleep()
+
+  class Build extends Task
+    constructor: (@human, @entityType, @arguments) ->
+      super(@human)
+      @turnsLeft = 10
+
+    class BuildAction extends Action
+      constructor: (@buildTask) ->
+      perform: (human) ->
+        @buildTask.turnsLeft -= 1
+        human.tired += 2
+        human.hunger += 1
+        if @buildTask.isComplete()
+          entity = construct(@buildTask.entityType, @buildTask.arguments)
+          human.world.addEntity(entity)
+
+    isComplete: () => @turnsLeft == 0
+    nextAction: () => new BuildAction(this)
 
   class Human extends Entity
     constructor: (@x, @y) ->
@@ -628,6 +657,9 @@ require [
     # keyboard events
     onKeyDown: (key) ->
       @keys[key] = true
+      if key is 'b'
+        pt = @cellPosition(@mouseX, @mouseY)
+        @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, House, [pt.x, pt.y])))
     onKeyUp: (key) ->
       delete @keys[key]
   }

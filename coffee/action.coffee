@@ -1,5 +1,6 @@
 define [
-], () ->
+  'construct'
+], (construct) ->
   class Action
     perform: (human) ->
     toString: () => this.constructor.name
