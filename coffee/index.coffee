@@ -30,10 +30,10 @@ require [
   CELL_PIXEL_SIZE = 32
 
   class World
-    constructor: (@width, @height, @cellFor) ->
+    constructor: (@width, @height, cellFor) ->
       @age = 0
-      @map = ((@cellFor(x, y) for x in [ 0...@width ]) for y in [ 0...@height ])
-      ((cell.world = this for cell in row) for row in @map)
+      @map = ((null for x in [ 0...@width ]) for y in [ 0...@height ])
+      ((@setCell(x, y, cellFor(x, y)) for x in [ 0...@width ]) for y in [ 0...@height ])
       @entities = []
       @addEntity(new House(10, 10))
       @human = @addEntity(new Human(10, 11))
@@ -51,6 +51,15 @@ require [
       entity
 
     withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
+
+    setCell: (x, y, cellConstructor) =>
+      cell = new cellConstructor(x, y)
+      cell.world = this
+      @map[y][x] = cell
+      # invalidate nearby cells' sprite caches
+      for xprime in [x - 1 .. x + 1]
+        for yprime in [y - 1 .. y + 1]
+          @getCell(xprime, yprime)?.invalidateCachedSprite()
 
     getCell: (x, y) =>
       if @withinMap(x, y)
@@ -176,10 +185,10 @@ require [
 
   class DryGrass extends Cell
     maybeGrassSprite: () =>
-      left = (@world.cellFor(@x-1, @y) instanceof Grass)
-      right = (@world.cellFor(@x+1, @y) instanceof Grass)
-      up = (@world.cellFor(@x, @y-1) instanceof Grass)
-      down = (@world.cellFor(@x, @y+1) instanceof Grass)
+      left = (@world.getCell(@x-1, @y) instanceof Grass)
+      right = (@world.getCell(@x+1, @y) instanceof Grass)
+      up = (@world.getCell(@x, @y-1) instanceof Grass)
+      down = (@world.getCell(@x, @y+1) instanceof Grass)
       if left
         if up
           {x: 24, y: 5}
@@ -202,7 +211,7 @@ require [
         null
 
     maybeWallSprite: () =>
-      down = (@world.cellFor(@x, @y+1) instanceof Wall)
+      down = (@world.getCell(@x, @y+1) instanceof Wall)
       if down
         {x: 23, y: 10}
       else
@@ -215,7 +224,7 @@ require [
     @colliding: true
 
     maybeDryGrassSprite: () =>
-      down = (@world.cellFor(@x, @y+1) instanceof DryGrass)
+      down = (@world.getCell(@x, @y+1) instanceof DryGrass)
       if down
         {x: 23, y: 13}
       else
@@ -603,11 +612,11 @@ require [
   setupWorld = () ->
     world = new World(600, 30, (x, y) ->
       if y % 12 <= 1 && (x + y) % 30 > 5
-        new Wall(x, y)
+        Wall
       else if Math.sin(x*y / 100) > .90
-        new Grass(x, y)
+        Grass
       else
-        new DryGrass(x, y)
+        DryGrass
     )
     for x in [0...world.width]
       for y in [0...world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
