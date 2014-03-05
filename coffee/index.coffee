@@ -157,7 +157,9 @@ require [
       # for entity in @entities
       #   entity.draw(cq)
       cell.draw(cq) for cell in @human.getVisibleCells()
-      entity.draw(cq) for entity in @human.getVisibleEntities()
+      for entity in @human.getVisibleEntities()
+        entity.draw(cq)
+        entity.invalidateCachedSprite()
 
       cq.context.globalAlpha = 0.5
       # now draw only the remembered ones
@@ -343,27 +345,10 @@ require [
 
   class House extends Entity
     spriteLocation: () => [
-      {
-      x: 1
-      y: 16
-      }
-      {
-      x: 0
-      y: 15
-      dx: -1
-      }
-      {
-        x: 4
-        y: 13
-        dx: -1
-        dy: -1
-      }
-      {
-        x: 5
-        y: 13
-        dx: 0
-        dy: -1
-      }
+      { x: 1, y: 16, dx:  0, dy:  0 }
+      { x: 0, y: 15, dx: -1, dy:  0 }
+      { x: 5, y: 13, dx:  0, dy: -1 }
+      { x: 4, y: 13, dx: -1, dy: -1 }
     ]
 
     @hitbox: {x: -1, y: -1, width: 2, height: 2}
