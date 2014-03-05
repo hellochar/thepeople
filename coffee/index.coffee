@@ -135,10 +135,9 @@ require [
       return null if not @withinMap(x, y)
 
       for e in @entities
-        hitboxes = e.getHitboxes()
-        for rect in hitboxes
-          if withinRect(x, y, rect.x, rect.x + rect.width - 1, rect.y, rect.y + rect.height - 1)
-            return e
+        rect = e.getHitbox()
+        if withinRect(x, y, rect.x, rect.x + rect.width - 1, rect.y, rect.y + rect.height - 1)
+          return e
 
       return null
 
@@ -319,24 +318,23 @@ require [
       )
 
     # optionally, declare a hitbox VALUE on the class
-    # hitbox is an array of {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
-    @hitbox: [{x: 0, y: 0, width: 1, height: 1}]
+    # hitbox is an {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
+    @hitbox: {x: 0, y: 0, width: 1, height: 1}
 
     # returns an array of rectangles (x, y, width, height) associated with a specified pt (by default this Entity's location)
-    getHitboxes: (x = @x, y = @y) =>
-      hitboxBlueprints = @constructor.hitbox
-      for hitbox in hitboxBlueprints
-        x: x + hitbox.x
-        y: y + hitbox.y
-        width: hitbox.width || 1
-        height: hitbox.height || 1
+    getHitbox: (x = @x, y = @y) =>
+      hitbox = @constructor.hitbox
+      x: x + hitbox.x
+      y: y + hitbox.y
+      width: hitbox.width || 1
+      height: hitbox.height || 1
 
     # returns true iff this Entity can occupy the given location
     canOccupy: (x, y, world = @world) =>
-      for rect in @getHitboxes(x, y)
-        for x in [rect.x...rect.x + rect.width]
-          for y in [rect.y...rect.y + rect.height]
-            return false if not world.isUnoccupied(x, y, this)
+      rect = @getHitbox(x, y)
+      for x in [rect.x...rect.x + rect.width]
+        for y in [rect.y...rect.y + rect.height]
+          return false if not world.isUnoccupied(x, y, this)
       return true
 
 
@@ -368,11 +366,7 @@ require [
       }
     ]
 
-    @hitbox: [
-      {x: -1, y: -1, width: 1, height: 2}
-      {x: 0, y: -1}
-    ]
-
+    @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
     draw: (cq) =>
       super(cq)
@@ -500,7 +494,7 @@ require [
 
   class GoHome extends WalkTo
     constructor: (@human) ->
-      super(@human, @human.closestVisible(House), 0)
+      super(@human, @human.closestVisible(House), 1)
 
   class Sleep extends Task
     constructor: (@human) ->
