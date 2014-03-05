@@ -115,9 +115,10 @@ require [
 
   class Drawable
     constructor: (@x, @y) ->
-      @timeCreated = new Date().valueOf()
+      @timeCreated = Date.now()
+      @invalidateCachedSprite()
 
-    animationMillis: () => (new Date()).valueOf() - @timeCreated
+    animationMillis: () => Date.now() - @timeCreated
 
     # {
     #   -- sprite sheet location
@@ -135,8 +136,15 @@ require [
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
 
+    invalidateCachedSprite: () =>
+      @cachedSpriteLocation = null
+    calculateCachedSprite: () =>
+      @cachedSpriteLocation = @spriteLocation()
+
     draw: (cq) =>
-      sprites = @spriteLocation()
+      if not @cachedSpriteLocation
+        @calculateCachedSprite()
+      sprites = @cachedSpriteLocation
       if not _.isArray(sprites)
         sprites = [sprites]
 
@@ -156,6 +164,7 @@ require [
     initialize: () ->
 
 
+  # cell invariant: constructor args are only "x, y"
   class Cell extends Drawable
     constructor: (@x, @y) ->
       super(@x, @y)
@@ -163,15 +172,9 @@ require [
     @colliding: false
 
   class Grass extends Cell
-    constructor: (@x, @y) ->
-      super(@x, @y)
-
     spriteLocation: () => { x: 21, y: 4 }
 
   class DryGrass extends Cell
-    constructor: (@x, @y) ->
-      super(@x, @y)
-
     maybeGrassSprite: () =>
       left = (@world.cellFor(@x-1, @y) instanceof Grass)
       right = (@world.cellFor(@x+1, @y) instanceof Grass)
@@ -209,9 +212,6 @@ require [
       @maybeGrassSprite() || @maybeWallSprite() || {x: 21, y: 0}
 
   class Wall extends Cell
-    constructor: (@x, @y) ->
-      super(@x, @y)
-
     @colliding: true
 
     maybeDryGrassSprite: () =>
@@ -696,6 +696,8 @@ require [
     onstep: (delta, time) ->
       @world.stepAll()
 
+    stepRate: 20
+
     onrender: () ->
       @renderer.render(@cq, @keys, @mouseX, @mouseY)
 
@@ -736,6 +738,7 @@ require [
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
           @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
+
     onkeyup: (key) ->
       delete @keys[key]
   }

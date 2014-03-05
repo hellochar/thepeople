@@ -240,11 +240,14 @@
       function step() {        
         var delta = Date.now() - lastTick;
         lastTick = Date.now();
-        requestAnimationFrame(step)
+        // requestAnimationFrame(step)
+        // setTimeout(step, 1000 / (context.stepRate || 60))
         callback.call(context, delta, lastTick);
       };
 
-      requestAnimationFrame(step);
+      setInterval(step, 1000 / (context.stepRate || 60))
+      // setTimeout(step, 1000 / (context.stepRate || 60))
+      // requestAnimationFrame(step);
     },
 
     onrender: function(element, callback, context) {
