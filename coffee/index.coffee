@@ -651,8 +651,16 @@ require [
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
+      if not (@currentAction instanceof Action.Rest) and not (@currentAction instanceof Action.Sleep)
+        dx = @facing.offset.x * .2
+        dy = @facing.offset.y * .2
+      else
+        dx = 0
+        dy = 0
       x: [10, 9, 10, 11][spriteIdx]
       y: {Down: 4, Left: 5, Right: 6, Up: 7}[@facing.direction]
+      dx: dx
+      dy: dy
       spritesheet: "characters"
 
     draw: (cq) =>
