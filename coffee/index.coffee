@@ -178,6 +178,8 @@ require [
     constructor: (@x, @y) ->
       super(@x, @y)
 
+    #spriteLocation invariant: spriteLocation only depends on neighbors
+
     @colliding: false
 
   class Grass extends Cell
@@ -509,6 +511,9 @@ require [
       # Should be the last Action you took; used by the Renderer to display info about what you're doing
       @currentAction = new Action.Rest()
 
+      @visibleCellsCache = null
+      @visibleEntitiesCache = null
+
     initialize: () =>
       # All cells you have seen previously, but cannot currently see
       @rememberedCells = []
@@ -542,8 +547,17 @@ require [
       )
 
 
-    getVisibleCells: () => @findCellsWithin(@sightRange)
-    getVisibleEntities: () => @findEntitiesWithin(@sightRange)
+    getVisibleCells: () => 
+      recomputeVisibleCells = () => @findCellsWithin(@sightRange)
+      if not @visibleCellsCache
+        @visibleCellsCache = recomputeVisibleCells()
+      @visibleCellsCache
+
+    getVisibleEntities: () => 
+      recomputeVisibleEntities = () => @findEntitiesWithin(@sightRange)
+      if not @visibleEntitiesCache
+        @visibleEntitiesCache = recomputeVisibleEntities()
+      @visibleEntitiesCache
 
     closestVisible: (entityType) =>
       entities = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (e) -> e instanceof entityType)
@@ -594,6 +608,8 @@ require [
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
+      @visibleCellsCache = null
+      @visibleEntitiesCache = null
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
