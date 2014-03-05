@@ -29,6 +29,62 @@ require [
 
   CELL_PIXEL_SIZE = 32
 
+
+  #
+  #
+  #
+  #
+  # class CollisionBox
+  #   constructor: (@owner, @pt, @localRectangles) ->
+  #   converted: (pt = @pt) => rectangles relative to pt
+  #
+  #
+  #
+  # # A class to handle a set of boxes (comprised of a list of rectangles)
+  # # The invariant to be held is that no box intersects with any other box
+  # # That is, for every pair of boxes b1, b2
+  # #   for every rectangle r1 in b1 and r2 in b2
+  # #     intersects(r1, r2) == false
+  # #
+  # # Internally holds a 2D grid of Box references; the grid reference at (x, y) points to the box occupying that location
+  # class CollisionLayer
+  #   constructor: (world)
+  #     @boxCache = for y in [0...world.width]
+  #       for x in [0...world.height]
+  #         null
+  #
+  #   # Adds a box to the list of boxes to collide with
+  #   # This method will actually move the box to the closest pt that it can fit into
+  #   putBox: (box) => : Boolean
+  #     for rect in box.converted
+  #       for pt in rect.points
+  #         boxAt = collisionBoxAt(pt.x, pt.y)
+  #         if boxAt isnt null and boxAt isnt box
+  #           # this position isn't good; scoot it into another position
+  #
+  #
+  #   # O(1), *the* optimized method
+  #   # returns the CollisionBox at the given location
+  #   collisionBoxAt: (x, y) => : CollisionBox | null
+  #     return @boxCache[y][x]
+  #
+  #
+  # World:
+  #
+  # Entity:
+  #   constructor: (pt) ->
+  #     # Each Entity has exactly one Collision Box
+  #     @collisionBox = @createCollisionBox()
+  #     couldPut = collisionLayer.putBox(@collisionBox)
+  #     throw new Cannot("Overlapping Entities") if not couldPut
+  #
+  #   pt: () => @collisionBox.pt
+  #
+  #   @collisionBoxPrototype = [{x: 0, y: 0, width: 1, height: 1}]
+  #
+  #   createCollisionBox: (pt) => return new CollisionBox(this, pt, constructor.collisionBoxPrototype)
+  #
+
   class World
     constructor: (@width, @height, cellFor) ->
       @age = 0
