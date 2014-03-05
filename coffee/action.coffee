@@ -13,18 +13,19 @@ define [
       human.tired += 1
 
   class MoveAction extends Action
-    constructor: (@direction) ->
-      throw "Bad direction" if isNaN(@direction.x) or isNaN(@direction.y)
+    constructor: (@offset, @direction) ->
+      throw "Bad direction" if isNaN(@offset.x) or isNaN(@offset.y)
     perform: (human) =>
-      human.x += @direction.x
-      human.y += @direction.y
+      human.x += @offset.x
+      human.y += @offset.y
+      human.facing = this
       human.hunger += 1
       human.tired += 1
 
-  LeftAction = new MoveAction({x: -1, y: 0})
-  RightAction = new MoveAction({x: 1, y: 0})
-  UpAction = new MoveAction({x: 0, y: -1})
-  DownAction = new MoveAction({x: 0, y: 1})
+  LeftAction = new MoveAction({x: -1, y: 0}, "Left")
+  RightAction = new MoveAction({x: 1, y: 0}, "Right")
+  UpAction = new MoveAction({x: 0, y: -1}, "Up")
+  DownAction = new MoveAction({x: 0, y: 1}, "Down")
 
   # the "do nothing" action
   class RestAction extends Action

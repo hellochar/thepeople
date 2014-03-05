@@ -425,7 +425,7 @@ require [
       class Path
         constructor: (@endState, @actions = []) ->
         addSegment: (action) =>
-          newLoc = {x: @endState.x + action.direction.x, y: @endState.y + action.direction.y}
+          newLoc = {x: @endState.x + action.offset.x, y: @endState.y + action.offset.y}
           new Path(newLoc, @actions.concat([action]))
 
       # queue is an array of path objects
@@ -549,6 +549,9 @@ require [
       @visibleCellsCache = null
       @visibleEntitiesCache = null
 
+      # The class of where you're facing
+      @facing = Action.Down
+
     initialize: () =>
       # All cells you have seen previously, but cannot currently see
       @rememberedCells = []
@@ -649,7 +652,7 @@ require [
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
       x: [10, 9, 10, 11][spriteIdx]
-      y: 4
+      y: {Down: 4, Left: 5, Right: 6, Up: 7}[@facing.direction]
       spritesheet: "characters"
 
     draw: (cq) =>
