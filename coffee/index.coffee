@@ -616,7 +616,8 @@ require [
 
     world
 
-  setupDebug = (world) ->
+  setupDebug = (framework) ->
+    {world: world, renderer: renderer} = framework
     statsStep = new Stats()
     statsStep.setMode(0)
     statsStep.domElement.style.position = 'absolute'
@@ -638,45 +639,65 @@ require [
     $("body").append( statsRender.domElement )
 
 
-  framework = {
-    setup: () ->
-      @world = setupWorld()
-      setupDebug(@world)
-
+  class Renderer
+    constructor: (@world) ->
       @camera = {
         x: 0
         y: 0
       }
 
-      @keys = {}
-
-      @cq = cq().framework(this, this)
-      @cq.canvas.oncontextmenu = () -> false
-      @cq.appendTo("body")
-
-    onstep: (delta, time) ->
-      @world.stepAll()
-
-    onrender: () ->
+    render: (cq, keys, mouseX, mouseY) =>
       $(@world).trigger("prerender")
+
       mapping = {
         w: () => @camera.y += 1
         s: () => @camera.y -= 1
         a: () => @camera.x += 1
         d: () => @camera.x -= 1
       }
-      for key, fn of mapping
-        fn() if @keys[key]
-      @cq.clear("black")
-      @cq.save()
-      @cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
-      @world.drawAll(@cq)
 
-      pt = @cellPosition(@mouseX, @mouseY)
-      if @world.human.canOccupy(pt.x, pt.y) then @cq.fillStyle("green") else @cq.fillStyle("red")
-      @cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
-      @cq.restore()
+      for key, fn of mapping
+        fn() if keys[key]
+      cq.clear("black")
+      cq.save()
+      cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
+      @world.drawAll(cq)
+
+
+      pt = @cellPosition(mouseX, mouseY)
+      if @world.human.canOccupy(pt.x, pt.y) then cq.fillStyle("green") else cq.fillStyle("red")
+      cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      cq.restore()
+
       $(@world).trigger("postrender")
+
+    cellPosition: (canvasX, canvasY) =>
+      x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
+      y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
+
+
+
+
+  framework = {
+    setup: () ->
+      @world = setupWorld()
+      @renderer = new Renderer(@world)
+
+      @keys = {}
+      @mouseX = 0
+      @mouseY = 0
+
+      @cq = cq().framework(this, this)
+      @cq.canvas.oncontextmenu = () -> false
+      @cq.appendTo("body")
+
+      setupDebug(this)
+
+    onstep: (delta, time) ->
+      @world.stepAll()
+
+    onrender: () ->
+      @renderer.render(@cq, @keys, @mouseX, @mouseY)
 
     # window resize
     onresize: (width, height) ->
@@ -686,10 +707,6 @@ require [
         @cq.canvas.height = height
         @cq.canvas.width = width
 
-    cellPosition: (canvasX, canvasY) ->
-      x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
-      y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
-
     # clickedBehavior: (x, y) ->
     #   entity = @world.entityAt(x, y)
     #   if entity isnt null
@@ -698,7 +715,7 @@ require [
     #     }
 
     onmousedown: (x, y, button) ->
-      pt = @cellPosition(x, y)
+      pt = @renderer.cellPosition(x, y)
       if @world.human.canOccupy(pt.x, pt.y)
         @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
@@ -707,13 +724,13 @@ require [
       @mouseY = y
 
     onmousewheel: (delta) ->
-      console.log(delta)
+      CELL_PIXEL_SIZE
 
     # keyboard events
     onkeydown: (key) ->
       @keys[key] = true
       if key is 'b'
-        pt = @cellPosition(@mouseX, @mouseY)
+        pt = @renderer.cellPosition(@mouseX, @mouseY)
         house = tryConstruct(@world.human, House, [pt.x, pt.y])
         if house
           # TODO this is only a preventative measure
