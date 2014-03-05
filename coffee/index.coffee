@@ -6,9 +6,10 @@ require [
   'underscore'
   'stats'
   'canvasquery'
+  'canvasquery.framework'
   'construct'
   'action'
-], ($, _, Stats, cq, construct, Action) ->
+], ($, _, Stats, cq, eveline, construct, Action) ->
 
   'use strict'
 
@@ -371,11 +372,6 @@ require [
       return @action
 
   class WalkTo extends Task
-    ACTIONS = [{ x: -1, y: 0},
-       { x: +1, y: 0},
-       { x: 0, y: -1},
-       { x: 0, y: +1},
-      ]
 
     # returns an array of actions to get from start to within the distance threshold
     bfs: (@start) =>
@@ -383,7 +379,7 @@ require [
       class Path
         constructor: (@endState, @actions = []) ->
         addSegment: (action) =>
-          newLoc = {x: @endState.x + action.x, y: @endState.y + action.y}
+          newLoc = {x: @endState.x + action.direction.x, y: @endState.y + action.direction.y}
           new Path(newLoc, @actions.concat([action]))
 
       # queue is an array of path objects
@@ -398,7 +394,7 @@ require [
         if Math.distance(path.endState, @pt) <= @distanceThreshold
           return path.actions
         else
-          for action in ACTIONS
+          for action in [Action.Left, Action.Right, Action.Up, Action.Down]
             newPath = path.addSegment(action)
             if @human.canOccupy(newPath.endState.x, newPath.endState.y)
               queue.push(newPath)
@@ -421,7 +417,7 @@ require [
     isComplete: () => _.isEmpty(@actions)
 
     nextAction: () =>
-      return new Action.Move(@actions.shift())
+      return @actions.shift()
 
   class Consume extends Task
     constructor: (@human, @food) ->
@@ -603,20 +599,49 @@ require [
       text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
       cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
+
+  setupWorld = () ->
+    world = new World(600, 30, (x, y) ->
+      if y % 12 <= 1 && (x + y) % 30 > 5
+        new Wall(x, y)
+      else if Math.sin(x*y / 100) > .90
+        new Grass(x, y)
+      else
+        new DryGrass(x, y)
+    )
+    for x in [0...world.width]
+      for y in [0...world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
+        food = new Food(x, y)
+        world.addEntity(food)
+
+    world
+
+  setupDebug = (world) ->
+    statsStep = new Stats()
+    statsStep.setMode(0)
+    statsStep.domElement.style.position = 'absolute'
+    statsStep.domElement.style.left = '0px'
+    statsStep.domElement.style.top = '0px'
+
+    statsRender = new Stats()
+    statsRender.setMode(0)
+    statsRender.domElement.style.position = 'absolute'
+    statsRender.domElement.style.left = '0px'
+    statsRender.domElement.style.top = '50px'
+
+    $(world).on('prestep', () -> statsStep.begin())
+    $(world).on('poststep', () -> statsStep.end())
+    $(world).on('prerender', () -> statsRender.begin())
+    $(world).on('postrender', () -> statsRender.end())
+
+    $("body").append( statsStep.domElement )
+    $("body").append( statsRender.domElement )
+
+
   framework = {
     setup: () ->
-      @world = new World(600, 30, (x, y) ->
-        if y % 12 <= 1 && (x + y) % 30 > 5
-          new Wall(x, y)
-        else if Math.sin(x*y / 100) > .90
-          new Grass(x, y)
-        else
-          new DryGrass(x, y)
-      )
-      for x in [0...@world.width]
-        for y in [0...@world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-          food = new Food(x, y)
-          @world.addEntity(food)
+      @world = setupWorld()
+      setupDebug(@world)
 
       @camera = {
         x: 0
@@ -629,28 +654,11 @@ require [
       @cq.canvas.oncontextmenu = () -> false
       @cq.appendTo("body")
 
-      @statsStep = new Stats()
-      @statsStep.setMode(0)
-      @statsStep.domElement.style.position = 'absolute'
-      @statsStep.domElement.style.left = '0px'
-      @statsStep.domElement.style.top = '0px'
-
-      @statsRender = new Stats()
-      @statsRender.setMode(0)
-      @statsRender.domElement.style.position = 'absolute'
-      @statsRender.domElement.style.left = '0px'
-      @statsRender.domElement.style.top = '50px'
-
-      $("body").append( @statsStep.domElement )
-      $("body").append( @statsRender.domElement )
-
-    onStep: (delta, time) ->
-      @statsStep.begin()
+    onstep: (delta, time) ->
       @world.stepAll()
-      @statsStep.end()
 
-    onRender: () ->
-      @statsRender.begin()
+    onrender: () ->
+      $(@world).trigger("prerender")
       mapping = {
         w: () => @camera.y += 1
         s: () => @camera.y -= 1
@@ -668,10 +676,10 @@ require [
       if @world.human.canOccupy(pt.x, pt.y) then @cq.fillStyle("green") else @cq.fillStyle("red")
       @cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
       @cq.restore()
-      @statsRender.end()
+      $(@world).trigger("postrender")
 
     # window resize
-    onResize: (width, height) ->
+    onresize: (width, height) ->
       # resize canvas with window
       # change camera transform
       if @cq
@@ -689,17 +697,20 @@ require [
     #       House: () => new 
     #     }
 
-    onMouseDown: (x, y, button) ->
+    onmousedown: (x, y, button) ->
       pt = @cellPosition(x, y)
       if @world.human.canOccupy(pt.x, pt.y)
         @world.human.currentTask = new WalkTo(@world.human, pt, 0)
 
-    onMouseMove: (x, y) ->
+    onmousemove: (x, y) ->
       @mouseX = x
       @mouseY = y
 
+    onmousewheel: (delta) ->
+      console.log(delta)
+
     # keyboard events
-    onKeyDown: (key) ->
+    onkeydown: (key) ->
       @keys[key] = true
       if key is 'b'
         pt = @cellPosition(@mouseX, @mouseY)
@@ -708,7 +719,7 @@ require [
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
           @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
-    onKeyUp: (key) ->
+    onkeyup: (key) ->
       delete @keys[key]
   }
 

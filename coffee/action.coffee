@@ -15,21 +15,18 @@ define [
   class MoveAction extends Action
     constructor: (@direction) ->
       throw "Bad direction" if isNaN(@direction.x) or isNaN(@direction.y)
-    perform: (human) ->
+    perform: (human) =>
       human.x += @direction.x
       human.y += @direction.y
       human.hunger += 1
       human.tired += 1
 
-  class WanderAction extends MoveAction
-    constructor: () ->
-      dir = [{ x: -1, y: 0},
-       { x: +1, y: 0},
-       { x: 0, y: -1},
-       { x: 0, y: +1},
-      ][Math.floor(Math.random() * 4)]
-      super(dir)
+  LeftAction = new MoveAction({x: -1, y: 0})
+  RightAction = new MoveAction({x: 1, y: 0})
+  UpAction = new MoveAction({x: 0, y: -1})
+  DownAction = new MoveAction({x: 0, y: 1})
 
+  # the "do nothing" action
   class RestAction extends Action
     perform: (human) ->
       human.tired += .1
@@ -43,8 +40,12 @@ define [
       human.hunger += .2
 
   Action.Consume = ConsumeAction
-  Action.Move = MoveAction
-  Action.Wander = WanderAction
+
+  Action.Left = LeftAction
+  Action.Right = RightAction
+  Action.Up = UpAction
+  Action.Down = DownAction
+
   Action.Rest = RestAction
   Action.Sleep = SleepAction
 

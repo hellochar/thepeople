@@ -1,21 +1,14 @@
 /*     
-  Canvas Query 0.8.4
-  http://canvasquery.org
+  Canvas Query 0.9.1
+  http://canvasquery.com
   (c) 2012-2013 http://rezoner.net
   Canvas Query may be freely distributed under the MIT license.
+
 */
 
 (function(window, undefined) {
 
   var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-
-
-  window.requestAnimationFrame = (function() {
-    return window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function(callback) {
-      window.setTimeout(callback, 1000 / 60);
-    };
-  })();
-
 
   var $ = function(selector) {
     if (arguments.length === 0) {
@@ -37,7 +30,26 @@
     }
 
     return new $.Wrapper(canvas);
-  }
+  };
+
+  $.cocoon = function(selector) {
+    if (arguments.length === 0) {
+      var canvas = $.createCocoonCanvas(window.innerWidth, window.innerHeight);
+      window.addEventListener("resize", function() {});
+    } else if (typeof selector === "string") {
+      var canvas = document.querySelector(selector);
+    } else if (typeof selector === "number") {
+      var canvas = $.createCocoonCanvas(arguments[0], arguments[1]);
+    } else if (selector instanceof Image || selector instanceof HTMLImageElement) {
+      var canvas = $.createCocoonCanvas(selector);
+    } else if (selector instanceof $.Wrapper) {
+      return selector;
+    } else {
+      var canvas = selector;
+    }
+
+    return new $.Wrapper(canvas);
+  };
 
   $.extend = function() {
     for (var i = 1; i < arguments.length; i++) {
@@ -305,7 +317,7 @@
 
     hexToRgb: function(hex) {
       if (hex.length === 7) return ['0x' + hex[1] + hex[2] | 0, '0x' + hex[3] + hex[4] | 0, '0x' + hex[5] + hex[6] | 0];
-      else return ['0x' + hex[1] | 0, '0x' + hex[2], '0x' + hex[3] | 0];
+      else return ['0x' + hex[1] + hex[1] | 0, '0x' + hex[2] + hex[2] | 0, '0x' + hex[3] + hex[3] | 0];
     },
 
     rgbToHex: function(r, g, b) {
@@ -463,54 +475,31 @@
         result.height = height;
       }
 
+
+      return result;
+    },
+
+    createCocoonCanvas: function(width, height) {
+      var result = document.createElement("screencanvas");
+
+      if (arguments[0] instanceof Image || arguments[0] instanceof HTMLImageElement) {
+        var image = arguments[0];
+        result.width = image.width;
+        result.height = image.height;
+        result.getContext("2d").drawImage(image, 0, 0);
+      } else {
+        result.width = width;
+        result.height = height;
+      }
+
+
       return result;
     },
 
     createImageData: function(width, height) {
       return document.createElement("Canvas").getContext("2d").createImageData(width, height);
-    },
-
-
-    /* https://gist.github.com/3781251 */
-
-    mousePosition: function(event) {
-      var totalOffsetX = 0,
-        totalOffsetY = 0,
-        coordX = 0,
-        coordY = 0,
-        currentElement = event.target || event.srcElement,
-        mouseX = 0,
-        mouseY = 0;
-
-      // Traversing the parents to get the total offset
-      do {
-        totalOffsetX += currentElement.offsetLeft;
-        totalOffsetY += currentElement.offsetTop;
-      }
-      while ((currentElement = currentElement.offsetParent));
-      // Set the event to first touch if using touch-input
-      if (event.changedTouches && event.changedTouches[0] !== undefined) {
-        event = event.changedTouches[0];
-      }
-      // Use pageX to get the mouse coordinates
-      if (event.pageX || event.pageY) {
-        mouseX = event.pageX;
-        mouseY = event.pageY;
-      }
-      // IE8 and below doesn't support event.pageX
-      else if (event.clientX || event.clientY) {
-        mouseX = event.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
-        mouseY = event.clientY + document.body.scrollTop + document.documentElement.scrollTop;
-      }
-      // Subtract the offset from the mouse coordinates
-      coordX = mouseX - totalOffsetX;
-      coordY = mouseY - totalOffsetY;
-
-      return {
-        x: coordX,
-        y: coordY
-      };
     }
+    
   });
 
   $.Wrapper = function(canvas) {
@@ -570,6 +559,12 @@
 
     set: function(properties) {
       $.extend(this.context, properties);
+
+      /*      for(var key in properties) {
+        this[key](properties[key]);
+      }
+      */
+
     },
 
     resize: function(width, height) {
@@ -1200,105 +1195,6 @@
       }
     },
 
-    /* www.html5rocks.com/en/tutorials/canvas/imagefilters/ */
-
-    convolve: function(matrix, mix, divide) {
-
-      if (typeof divide === "undefined") divide = 1;
-      if (typeof mix === "undefined") mix = 1;
-
-      var sourceData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-      var matrixSize = Math.sqrt(matrix.length) + 0.5 | 0;
-      var halfMatrixSize = matrixSize / 2 | 0;
-      var src = sourceData.data;
-      var sw = sourceData.width;
-      var sh = sourceData.height;
-      var w = sw;
-      var h = sh;
-      var output = $.createImageData(this.canvas.width, this.canvas.height);
-      var dst = output.data;
-
-      for (var y = 1; y < h - 1; y++) {
-        for (var x = 1; x < w - 1; x++) {
-
-          var dstOff = (y * w + x) * 4;
-          var r = 0,
-            g = 0,
-            b = 0,
-            a = 0;
-
-          for (var cy = 0; cy < matrixSize; cy++) {
-            for (var cx = 0; cx < matrixSize; cx++) {
-              var scy = y + cy - halfMatrixSize;
-              var scx = x + cx - halfMatrixSize;
-              if (scy >= 0 && scy < sh && scx >= 0 && scx < sw) {
-                var srcOff = (scy * sw + scx) * 4;
-
-                var wt = matrix[cy * matrixSize + cx] / divide;
-
-                r += src[srcOff + 0] * wt;
-                g += src[srcOff + 1] * wt;
-                b += src[srcOff + 2] * wt;
-                a += src[srcOff + 3] * wt;
-              }
-            }
-          }
-
-          dst[dstOff + 0] = $.mix(src[dstOff + 0], r, mix);
-          dst[dstOff + 1] = $.mix(src[dstOff + 1], g, mix);
-          dst[dstOff + 2] = $.mix(src[dstOff + 2], b, mix);
-          dst[dstOff + 3] = a;
-          // src[dstOff + 3];
-        }
-      }
-    },
-
-    blur: function(mix) {
-      return this.convolve([1, 1, 1, 1, 1, 1, 1, 1, 1], mix, 9);
-    },
-
-    gaussianBlur: function(mix) {
-      return this.convolve([0.00000067, 0.00002292, 0.00019117, 0.00038771, 0.00019117, 0.00002292, 0.00000067, 0.00002292, 0.00078633, 0.00655965, 0.01330373, 0.00655965, 0.00078633, 0.00002292, 0.00019117, 0.00655965, 0.05472157, 0.11098164, 0.05472157, 0.00655965, 0.00019117, 0.00038771, 0.01330373, 0.11098164, 0.22508352, 0.11098164, 0.01330373, 0.00038771, 0.00019117, 0.00655965, 0.05472157, 0.11098164, 0.05472157, 0.00655965, 0.00019117, 0.00002292, 0.00078633, 0.00655965, 0.01330373, 0.00655965, 0.00078633, 0.00002292, 0.00000067, 0.00002292, 0.00019117, 0.00038771, 0.00019117, 0.00002292, 0.00000067], mix, 1);
-    },
-
-    sharpen: function(mix) {
-      return this.convolve([0, -1, 0, -1, 5, -1, 0, -1, 0], mix);
-    },
-
-    threshold: function(threshold) {
-      var data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-      var pixels = data.data;
-      var r, g, b;
-
-      for (var i = 0; i < pixels.length; i += 4) {
-        var r = pixels[i];
-        var g = pixels[i + 1];
-        var b = pixels[i + 2];
-        var v = (0.2126 * r + 0.7152 * g + 0.0722 * b >= threshold) ? 255 : 0;
-        pixels[i] = pixels[i + 1] = pixels[i + 2] = v
-      }
-
-      this.context.putImageData(data, 0, 0);
-
-      return this;
-    },
-
-    sepia: function() {
-      var data = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-      var pixels = data.data;
-      var r, g, b;
-
-      for (var i = 0; i < pixels.length; i += 4) {
-        pixels[i + 0] = $.limitValue((pixels[i + 0] * .393) + (pixels[i + 1] * .769) + (pixels[i + 2] * .189), 0, 255);
-        pixels[i + 1] = $.limitValue((pixels[i + 0] * .349) + (pixels[i + 1] * .686) + (pixels[i + 2] * .168), 0, 255);
-        pixels[i + 2] = $.limitValue((pixels[i + 0] * .272) + (pixels[i + 1] * .534) + (pixels[i + 2] * .131), 0, 255);
-      }
-
-      this.context.putImageData(data, 0, 0);
-
-      return this;
-    },
-
     measureText: function() {
       return this.context.measureText.apply(this.context, arguments);
     },
@@ -1313,249 +1209,6 @@
 
     getImageData: function() {
       return this.context.getImageData.apply(this.context, arguments);
-    },
-
-    /* framework */
-
-    framework: function(args, context) {
-      if (context) {
-        this.tempContext = context === true ? args : context;
-      }
-
-      for (var name in args) {
-        if (this[name]) this[name](args[name], undefined, undefined);
-      }
-
-      this.tempContext = null;
-
-      return this;
-    },
-
-    onStep: function(callback, interval) {
-      var self = this.tempContext || this;
-      var lastTick = Date.now();
-      interval = interval || 25;
-
-      this.timer = setInterval(function() {
-        var delta = Date.now() - lastTick;
-        lastTick = Date.now();
-        callback.call(self, delta, lastTick);
-      }, interval);
-
-      return this;
-    },
-
-    onRender: function(callback) {
-      var self = this.tempContext || this;
-
-      var lastTick = Date.now();
-
-      function step() {
-        var delta = Date.now() - lastTick;
-        lastTick = Date.now();
-        requestAnimationFrame(step)
-        callback.call(self, delta, lastTick);
-      };
-
-      requestAnimationFrame(step);
-
-      return this;
-    },
-
-    onMouseMove: function(callback) {
-      var self = this.tempContext || this;
-
-      if (!MOBILE) this.canvas.addEventListener("mousemove", function(e) {
-        var pos = $.mousePosition(e);
-        callback.call(self, pos.x, pos.y);
-      });
-
-      else this.canvas.addEventListener("touchmove", function(e) {
-        e.preventDefault();
-        var pos = $.mousePosition(e);
-        callback.call(self, pos.x, pos.y);
-      });
-
-      return this;
-    },
-
-    onMouseDown: function(callback) {
-      var self = this.tempContext || this;
-
-      if (!MOBILE) {
-        this.canvas.addEventListener("mousedown", function(e) {
-          var pos = $.mousePosition(e);
-          callback.call(self, pos.x, pos.y, e.button);
-        });
-      } else {
-        this.canvas.addEventListener("touchstart", function(e) {
-          var pos = $.mousePosition(e);
-          callback.call(self, pos.x, pos.y, e.button);
-        });
-      }
-
-      return this;
-    },
-
-    onMouseUp: function(callback) {
-      var self = this.tempContext || this;
-
-      if (!MOBILE) {
-        this.canvas.addEventListener("mouseup", function(e) {
-          var pos = $.mousePosition(e);
-          callback.call(self, pos.x, pos.y, e.button);
-        });
-      } else {
-        this.canvas.addEventListener("touchend", function(e) {
-          var pos = $.mousePosition(e);
-          callback.call(self, pos.x, pos.y, e.button);
-        });
-      }
-
-      return this;
-    },
-
-
-    onSwipe: function(callback, threshold, timeout) {
-      var self = this.tempContext || this;
-
-      var swipeThr = threshold || 35;
-      var swipeTim = timeout || 350;
-
-      var swipeSP = 0;
-      var swipeST = 0;
-      var swipeEP = 0;
-      var swipeET = 0;
-
-      function swipeStart(e) {
-        e.preventDefault();
-        swipeSP = $.mousePosition(e);
-        swipeST = Date.now();
-      }
-
-      function swipeUpdate(e) {
-        e.preventDefault();
-        swipeEP = $.mousePosition(e);
-        swipeET = Date.now();
-      }
-
-      function swipeEnd(e) {
-        e.preventDefault();
-
-        var xDif = (swipeSP.x - swipeEP.x);
-        var yDif = (swipeSP.y - swipeEP.y);
-        var x = (xDif * xDif);
-        var y = (yDif * yDif);
-        var swipeDist = Math.sqrt(x + y);
-        var swipeTime = (swipeET - swipeST);
-        var swipeDir = undefined;
-
-        if (swipeDist > swipeThr && swipeTime < swipeTim) {
-          if (Math.abs(xDif) > Math.abs(yDif)) {
-            if (xDif > 0) {
-              swipeDir = "left";
-            } else {
-              swipeDir = "right";
-            }
-          } else {
-            if (yDif > 0) {
-              swipeDir = "up";
-            } else {
-              swipeDir = "down";
-            }
-          }
-          callback.call(self, swipeDir);
-        }
-      }
-
-      this.canvas.addEventListener("touchstart", function(e) {
-        swipeStart(e);
-      });
-      this.canvas.addEventListener("touchmove", function(e) {
-        swipeUpdate(e);
-      });
-      this.canvas.addEventListener("touchend", function(e) {
-        swipeEnd(e);
-      });
-      this.canvas.addEventListener("mousedown", function(e) {
-        swipeStart(e);
-      });
-      this.canvas.addEventListener("mousemove", function(e) {
-        swipeUpdate(e);
-      });
-      this.canvas.addEventListener("mouseup", function(e) {
-        swipeEnd(e);
-      });
-
-      return this;
-    },
-
-    onKeyDown: function(callback) {
-      var self = this.tempContext || this;
-
-      document.addEventListener("keydown", function(e) {
-        if (e.which >= 48 && e.which <= 90) var keyName = String.fromCharCode(e.which).toLowerCase();
-        else var keyName = $.keycodes[e.which];
-        callback.call(self, keyName);
-      });
-      return this;
-    },
-
-    onKeyUp: function(callback) {
-      var self = this.tempContext || this;
-
-      document.addEventListener("keyup", function(e) {
-        if (e.which >= 48 && e.which <= 90) var keyName = String.fromCharCode(e.which).toLowerCase();
-        else var keyName = $.keycodes[e.which];
-        callback.call(self, keyName);
-      });
-      return this;
-    },
-
-
-    onResize: function(callback) {
-      var self = this.tempContext || this;
-
-      window.addEventListener("resize", function() {
-        callback.call(self, window.innerWidth, window.innerHeight);
-      });
-
-      callback.call(self, window.innerWidth, window.innerHeight);
-
-      return this;
-    },
-
-    onDropImage: function(callback) {
-      var self = this.tempContext || this;
-
-      document.addEventListener('drop', function(e) {
-        e.stopPropagation();
-        e.preventDefault();
-
-        var file = e.dataTransfer.files[0];
-
-        if (!(/image/i).test(file.type)) return false;
-        var reader = new FileReader();
-
-        reader.onload = function(e) {
-          var image = new Image;
-
-          image.onload = function() {
-            callback.call(self, this);
-          };
-
-          image.src = e.target.result;
-        };
-
-        reader.readAsDataURL(file);
-
-      });
-
-      document.addEventListener("dragover", function(e) {
-        e.preventDefault();
-      });
-
-      return this;
     }
 
   };
@@ -1640,6 +1293,11 @@
       }
     },
 
+    alpha: function(a) {
+      this[3] = a;
+      return this;
+    },
+
     fromHsl: function() {
       var components = arguments[0] instanceof Array ? arguments[0] : arguments;
       var color = $.hslToRgb(components[0], components[1], components[2]);
@@ -1712,6 +1370,18 @@
       var l = arguments[2] === null ? hsl[2] : $.limitValue(arguments[2], 0, 1);
 
       this.fromHsl(h, s, l);
+
+      return this;
+    },
+
+    mix: function(color, mix) {
+
+      var color = cq.color(color);
+
+      this[0] = this[0] + (color[0] - this[0]) * mix;
+      this[1] = this[1] + (color[1] - this[1]) * mix;
+      this[2] = this[2] + (color[2] - this[2]) * mix;
+      this[3] = this[3] + (color[3] - this[3]) * mix;
 
       return this;
     }

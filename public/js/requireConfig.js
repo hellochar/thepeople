@@ -6,6 +6,7 @@ var require = {
         box2d: ['vendor/Box2dWeb-2.1.a.3'],
         b2: 'b2',
         canvasquery: ['vendor/canvasquery'],
+        'canvasquery.framework': ['vendor/canvasquery.framework'],
         noise: ['vendor/noise'],
         stats: ['vendor/stats'],
         seedrandom: ['vendor/seedrandom'],
@@ -30,7 +31,11 @@ var require = {
             exports: 'Maybe'
         },
         canvasquery: {
-            exports: 'cq'
+            exports: ['cq', 'CanvasQuery']
+        },
+        'canvasquery.framework': {
+            deps: ['canvasquery'],
+            exports: 'CanvasQuery'
         },
         "dat.gui": {
             exports: 'dat'
