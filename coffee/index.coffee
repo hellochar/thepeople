@@ -9,7 +9,8 @@ require [
   'canvasquery.framework'
   'construct'
   'action'
-], ($, _, Stats, cq, eveline, construct, Action) ->
+  'search'
+], ($, _, Stats, cq, eveline, construct, Action, Search) ->
 
   'use strict'
 
@@ -427,41 +428,7 @@ require [
 
     toString: () => @currentTask().toString()
 
-  class RepeatedActionTask extends Task
-    constructor: (@human, @action, @times) ->
-    isComplete: () => @times > 0
-    nextAction: () =>
-      @times -= 1
-      return @action
-
   class WalkTo extends Task
-
-    # returns an array of actions to get from start to within the distance threshold
-    bfs: (@start) =>
-      # immutable class representing a path to get to an end state
-      class Path
-        constructor: (@endState, @actions = []) ->
-        addSegment: (action) =>
-          newLoc = {x: @endState.x + action.offset.x, y: @endState.y + action.offset.y}
-          new Path(newLoc, @actions.concat([action]))
-
-      # queue is an array of path objects
-      queue = [new Path(@start)]
-      visited = {} # keys are JSON.stringify({x, y}) objects
-      while not _.isEmpty(queue)
-        path = queue.shift()
-
-        continue if visited[JSON.stringify(path.endState)]
-        visited[JSON.stringify(path.endState)] = true
-
-        if Math.distance(path.endState, @pt) <= @distanceThreshold
-          return path.actions
-        else
-          for action in [Action.Left, Action.Right, Action.Up, Action.Down]
-            newPath = path.addSegment(action)
-            if @human.canOccupy(newPath.endState.x, newPath.endState.y)
-              queue.push(newPath)
-      return null
 
     constructor: (@human, @pt, @distanceThreshold = 1) ->
       super(@human)
@@ -471,7 +438,11 @@ require [
         console.log("cannot occupy that space!")
         @actions = []
       else
-        @actions = @bfs(_.pick(@human, "x", "y"))
+        @actions = Search.bfs({
+          start: _.pick(@human, "x", "y")
+          goalPredicate: (cell) => Math.distance(cell, @pt) <= @distanceThreshold
+          entity: @human
+        })
         if not @actions
           console.log("no path!")
           @actions = []
@@ -697,7 +668,7 @@ require [
 
 
   setupWorld = () ->
-    world = new World(600, 30, (x, y) ->
+    world = new World(60, 60, (x, y) ->
       if y % 12 <= 1 && (x + y) % 30 > 5
         Wall
       else if Math.sin(x*y / 100) > .90
