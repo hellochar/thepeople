@@ -438,11 +438,10 @@ require [
         console.log("cannot occupy that space!")
         @actions = []
       else
-        @actions = Search.bfs({
-          start: _.pick(@human, "x", "y")
-          goalPredicate: (cell) => Math.distance(cell, @pt) <= @distanceThreshold
-          entity: @human
-        })
+        @actions = Search.findPath(
+          @human,
+          (cell) => Math.distance(cell, @pt) <= @distanceThreshold
+        )
         if not @actions
           console.log("no path!")
           @actions = []

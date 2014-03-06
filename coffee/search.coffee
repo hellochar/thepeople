@@ -1,8 +1,9 @@
 # Methods for searching through a state space with transition "actions"
 
 define [
+  'underscore'
   'action'
-], (Action) ->
+], (_, Action) ->
 
   # immutable class representing a path to get to an end state
   class Path
@@ -33,9 +34,16 @@ define [
             queue.push(newPath)
     return null
 
+  findPath = (entity, goalPredicate) ->
+    return bfs(
+      entity: entity
+      start: _.pick(entity, "x", "y")
+      goalPredicate: goalPredicate
+    )
+
 
   Search = {
-    bfs: bfs
+    findPath: findPath
   }
 
   return Search
