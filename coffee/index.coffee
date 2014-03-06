@@ -172,7 +172,7 @@ require [
   class Spritesheets
     @mapping: {}
 
-    @get: (name, tileSize = 32) ->
+    @get: (name) ->
       if not @mapping[name]
         s = new Image()
         s.src = "/images/spritesheets/#{name}.png"
@@ -196,6 +196,10 @@ require [
     #   -- offset to draw on the map
     #   dx: 0 (float)
     #   dy: 0 (float)
+    #
+    #
+    #   -- rotation (ccw in degrees)
+    #   rotation: 0
     #
     #   spritesheet: "tiles1"
     # }
@@ -225,7 +229,20 @@ require [
         spritesheetName = sprite.spritesheet || "tiles1"
         spritesheet = Spritesheets.get(spritesheetName)
         tileSize = 32
-        cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
+        rotation = (-sprite.rotation || 0) * Math.PI / 180
+
+        if rotation != 0
+          cq.save()
+          imageWidth = width * CELL_PIXEL_SIZE
+          imageHeight = height * height * CELL_PIXEL_SIZE
+          cq.translate((@x + dx) * CELL_PIXEL_SIZE + imageWidth / 2, (@y + dy) * CELL_PIXEL_SIZE + imageHeight / 2)
+          cq.rotate(rotation)
+          cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight)
+          cq.restore()
+        else
+          # optimize the unrotated case (which is most cases)
+          cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
+
 
     initialize: () ->
 
@@ -568,6 +585,7 @@ require [
         # to update the rememberedCells
         # 1. remove cells remembered last frame but visible now
         # 2. add in cells visible last frame but not visible now
+        # this is still O( # of remembered cells )! Uh oh
         @rememberedCells = _.difference(@rememberedCells, @getVisibleCells())
 
         @rememberedCells = @rememberedCells.concat(_.difference(lastVisibleCells, @getVisibleCells()))
@@ -580,6 +598,7 @@ require [
           @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
         )
 
+        # O( # of remembered entities ) <-- this is better but could be bad
         @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
         @rememberedEntities = @rememberedEntities.concat(_.difference(lastVisibleEntities, @getVisibleEntities()))
       )
@@ -651,17 +670,23 @@ require [
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
+      spriteInfo =
+        x: [10, 9, 10, 11][spriteIdx]
+        y: {Down: 4, Left: 5, Right: 6, Up: 7}[@facing.direction]
+        spritesheet: "characters"
+
       if not (@currentAction instanceof Action.Rest) and not (@currentAction instanceof Action.Sleep)
-        dx = @facing.offset.x * .2
-        dy = @facing.offset.y * .2
-      else
-        dx = 0
-        dy = 0
-      x: [10, 9, 10, 11][spriteIdx]
-      y: {Down: 4, Left: 5, Right: 6, Up: 7}[@facing.direction]
-      dx: dx
-      dy: dy
-      spritesheet: "characters"
+        spriteInfo.dx = @facing.offset.x * .2
+        spriteInfo.dy = @facing.offset.y * .2
+
+      if @currentAction instanceof Action.Sleep
+        spriteInfo = _.extend(spriteInfo,
+          x: 10
+          y: 6
+          rotation: 90
+        )
+
+      spriteInfo
 
     draw: (cq) =>
       super(cq)
@@ -682,8 +707,9 @@ require [
     )
     for x in [0...world.width]
       for y in [0...world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-        food = new Food(x, y)
-        world.addEntity(food)
+        if world.isUnoccupied(x, y)
+          food = new Food(x, y)
+          world.addEntity(food)
 
     world
 
@@ -797,7 +823,7 @@ require [
       @mouseY = y
 
     onmousewheel: (delta) ->
-      CELL_PIXEL_SIZE
+      CELL_PIXEL_SIZE *= Math.pow(1.05, delta)
 
     # keyboard events
     onkeydown: (key) ->
