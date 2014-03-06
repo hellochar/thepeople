@@ -42,6 +42,8 @@ define [
 
   Action.Consume = ConsumeAction
 
+  Action.Directionals = [LeftAction, RightAction, UpAction, DownAction]
+
   Action.Left = LeftAction
   Action.Right = RightAction
   Action.Up = UpAction

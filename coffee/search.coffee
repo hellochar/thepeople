@@ -2,8 +2,9 @@
 
 define [
   'underscore'
+  'pathfinding'
   'action'
-], (_, Action) ->
+], (_, PathFinding, Action) ->
 
   # immutable class representing a path to get to an end state
   class Path
@@ -41,9 +42,35 @@ define [
       goalPredicate: goalPredicate
     )
 
+  findPathTo = (entity, goal) ->
+    world = entity.world
+    matrix = for y in [0...world.height]
+      for x in [0...world.width]
+        if world.isUnoccupied(x, y)
+          0
+        else
+          1
+
+
+    grid = new PathFinding.Grid(world.width, world.height, matrix)
+    finder = new PathFinding.AStarFinder()
+    # [ [x, y], [x, y], [x, y] ]
+    states = finder.findPath(entity.x, entity.y, goal.x, goal.y, grid)
+
+
+    findActionFor = (from, to) ->
+      offset = {x: to[0] - from[0], y: to[1] - from[1]}
+      _.find(Action.Directionals, (direction) -> _.isEqual(direction.offset, offset))
+
+    for i in [0...states.length - 1]
+      action = findActionFor( states[i], states[i + 1] )
+      debugger if not action
+      action
+
 
   Search = {
     findPath: findPath
+    findPathTo: findPathTo
   }
 
   return Search

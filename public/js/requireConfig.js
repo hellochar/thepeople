@@ -11,6 +11,7 @@ var require = {
         stats: ['vendor/stats'],
         seedrandom: ['vendor/seedrandom'],
         underscore: ['vendor/underscore'],
+        pathfinding: ['vendor/PathFinding.js/lib/pathfinding-browser'],
         "dat.gui": 'vendor/dat.gui',
 
     },

@@ -438,10 +438,14 @@ require [
         console.log("cannot occupy that space!")
         @actions = []
       else
-        @actions = Search.findPath(
-          @human,
-          (cell) => Math.distance(cell, @pt) <= @distanceThreshold
-        )
+        @actions = 
+          if @distanceThreshold > 0
+            Search.findPath(
+              @human,
+              (cell) => Math.distance(cell, @pt) <= @distanceThreshold
+            )
+          else 
+            Search.findPathTo(@human, @pt)
         if not @actions
           console.log("no path!")
           @actions = []
