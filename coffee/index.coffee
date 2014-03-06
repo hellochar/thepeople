@@ -369,10 +369,12 @@ require [
       { x: 4, y: 13, dx: -1, dy: -1 }
     ]
 
-    @hitbox: {x: -1, y: -1, width: 2, height: 2}
+    getFreeBeds: (human) =>
+      beds = [{ x: @x + 1, y: @y},
+              { x: @x, y: @y + 1}]
+      _.filter(beds, (pt) => @world.isUnoccupied(pt.x, pt.y, human))
 
-    draw: (cq) =>
-      super(cq)
+    @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
     step: () =>
 
@@ -430,7 +432,7 @@ require [
 
   class WalkTo extends Task
 
-    constructor: (@human, @pt, @distanceThreshold = 1) ->
+    constructor: (@human, @pt, @distanceThreshold) ->
       super(@human)
       @pt = _.pick(@pt, "x", "y")
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
@@ -466,11 +468,19 @@ require [
 
   class Eat extends TaskList
     constructor: (@human, @food) ->
-      super(@human, [new WalkTo(@human, @food), new Consume(@human, @food)])
+      super(@human, [new WalkTo(@human, @food, 1), new Consume(@human, @food)])
 
   class GoHome extends WalkTo
     constructor: (@human) ->
-      super(@human, @human.closestVisible(House), 1)
+      # find closest free bed and sleep
+      openHouse = _.find(
+        _.filter(@human.getKnownEntities(),
+          (b) -> b instanceof House),
+        (b) => not _.isEmpty(b.getFreeBeds(@human)))
+
+      closestBed = _.min(openHouse.getFreeBeds(@human), @human.distanceTo)
+
+      super(@human, closestBed, 0)
 
   class Sleep extends Task
     constructor: (@human) ->
@@ -590,8 +600,12 @@ require [
         @visibleEntitiesCache = recomputeVisibleEntities()
       @visibleEntitiesCache
 
-    closestVisible: (entityType) =>
-      entities = _.filter(@rememberedEntities.concat(@getVisibleEntities()), (e) -> e instanceof entityType)
+    getKnownEntities: () =>
+      @rememberedEntities.concat(@getVisibleEntities())
+
+
+    closestKnown: (entityType) =>
+      entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
       if not _.isEmpty(entities)
         _.min(entities, @distanceTo)
       else
@@ -603,7 +617,7 @@ require [
 
       if @hunger > 300
         tasks.push( () =>
-          closestFood = @closestVisible(Food)
+          closestFood = @closestKnown(Food)
           if closestFood
             new Eat(this, closestFood)
           else
@@ -809,6 +823,8 @@ require [
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
           @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
+      else if key is 'h'
+        @world.human.currentTask = new GoHome(@world.human)
 
     onkeyup: (key) ->
       delete @keys[key]
