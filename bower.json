@@ -1,0 +1,22 @@
+{
+  "name": "thepeople",
+  "version": "0.0.0",
+  "homepage": "https://github.com/hellochar/thepeople",
+  "authors": [
+    "Xiaohan Zhang <hellocharlien@hotmail.com>"
+  ],
+  "main": "app.js",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "backbone": "~1.1.2",
+    "PathFinding.js": "*"
+  }
+}

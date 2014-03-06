@@ -29,6 +29,7 @@ app.use(express.urlencoded());
 app.use(express.methodOverride());
 app.use(app.router);
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/js/vendor', express.static(path.join(__dirname, 'bower_components')));
 app.use(express.static(path.join(__dirname, 'compiled')));
 
 app.get('/', routes.index);
