@@ -4,13 +4,14 @@ window.asdf = (x, y) ->
 require [
   'jquery',
   'underscore'
+  'backbone'
   'stats'
   'canvasquery'
   'canvasquery.framework'
   'construct'
   'action'
   'search'
-], ($, _, Stats, cq, eveline, construct, Action, Search) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Action, Search) ->
 
   'use strict'
 
@@ -86,11 +87,109 @@ require [
   #   createCollisionBox: (pt) => return new CollisionBox(this, pt, constructor.collisionBoxPrototype)
   #
 
+
+
+
+
+
+  ###
+  #
+  # DependentCell extending Backbone.Events to hold
+  # cell type (which in turn controls occupied, sprite, etc.)
+  #
+  # Backbone library is there; requireConfig not setup; not imported yet
+  #
+  # Need to find codebase that touches Cell and make it work with DependentCell, which is a
+  # a mutable container Cell with eventing; instead of "replacing"
+  # the current cell with a new cell, update the "cell type" of the cell
+  # at the given location
+  #
+  #
+  #
+  # # Has a "cell" DependentCell which it lives in
+  # class Tile extends Backbone.Model
+  #   initialize: () ->
+  #     cell = @get("cell")
+  #     {x: x, y: y} = cell
+  #     @dependenciesCollection = new Backbone.Collection(dependencies())
+  #     @listenTo(@dependenciesCollection, "change", @recompute)
+  #     @recompute()
+  #
+  #   dependencies: () ->
+  #     throw "not implemented"
+  #
+  #   recompute: () ->
+  #     sprite = @getSpriteLocation()
+  #     @cell.set("spriteLocation", sprite)
+  #
+  #   getSpriteLocation: (deps) ->
+  #     throw "not implemented"
+  #
+  #   @colliding: false
+  #
+  # class DryGrass extends Tile
+  #   dependencies: () ->
+  #   [
+  #                             @get("cell").world.cellAt(x - 1, y)
+  #                             @get("cell").world.cellAt(x + 1, y)
+  #                             @get("cell").world.cellAt(x, y - 1)
+  #                             @get("cell").world.cellAt(x, y + 1)
+  #   ]
+  #
+  #   getSpriteLocation: (deps) ->
+  #     left = deps.at(0)
+  #     return {x: 12, y: 26}
+  #
+  #
+  #
+  # new DryGrass({cell: this})
+  #
+  #
+  #
+  # Tile API:
+  #   to create a new type of tile:
+  #     call Tile.extend({ dependencies, getSpriteLocation }, {colliding: true or false (default false) })
+  #
+  #   to use Tiles, you need to: construct with new tileType({cell: cell})
+  #                kill tiles with tile.stopListening()
+  #
+  #   you get:
+  #     cell.spriteLocation's invariant is upheld: is always reflective of calling
+  #     spriteLocation() on the current cell always
+  #     draw: (cq) =>
+  #
+  # DependentCell API:
+  #   you need to: construct new DependentCell({x, y}) # DO NOT pass in a type to begin with!
+  #                set tiles with cell.set("tile", tile)
+  #
+  #   you get:
+  #     tile pathing matrix's invariant is held: it's the same value as if you called
+  #     computeMatrixFromScratch() whenever you needed matrix
+  #
+  ###
+
+  class DependentCell extends Backbone.Model
+    # @x, @y, @tile which is a Tile constructor; you can access get("spriteLocation")
+    initialize: () =>
+      @listenTo(this, "change:type", (model, type, opts) =>
+        if @tileInstance
+          @tileInstance.stopListening()
+        @tileInstance = new type({cell: this})
+      )
+
   class World
-    constructor: (@width, @height, cellFor) ->
+    constructor: (@width, @height, cellTypeFor) ->
       @age = 0
-      @map = ((null for x in [ 0...@width ]) for y in [ 0...@height ])
-      ((@setCell(x, y, cellFor(x, y)) for x in [ 0...@width ]) for y in [ 0...@height ])
+      # Map is a 2D array of DependentCells
+      @map =
+        for y in [ 0...@height ]
+          for x in [ 0...@width ]
+            new DependentCell({x: x, y: y, world: this})
+
+      for y in [ 0...@height ]
+        for x in [ 0...@width ]
+          @setCellType(x, y, cellTypeFor(x, y))
+
       @entities = []
       @addEntity(new House(10, 10))
       @human = @addEntity(new Human(10, 11))
@@ -109,14 +208,9 @@ require [
 
     withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
 
-    setCell: (x, y, cellConstructor) =>
-      cell = new cellConstructor(x, y)
-      cell.world = this
-      @map[y][x] = cell
-      # invalidate nearby cells' sprite caches
-      for xprime in [x - 1 .. x + 1]
-        for yprime in [y - 1 .. y + 1]
-          @getCell(xprime, yprime)?.invalidateCachedSprite()
+    setCellType: (x, y, cellType) =>
+      if @withinMap(x, y)
+        @map[y][x].set("type", cellType)
 
     getCell: (x, y) =>
       if @withinMap(x, y)
@@ -126,7 +220,7 @@ require [
 
     isUnoccupied: (x, y, ignoredEntity = null) =>
       return false if not @withinMap(x, y)
-      return false if @getCell(x, y).constructor.colliding
+      return false if @getCell(x, y).get("type").colliding
       return false if @entityAt(x, y) isnt null and @entityAt(x, y) isnt ignoredEntity
       return true
 
@@ -160,7 +254,6 @@ require [
       cell.draw(cq) for cell in @human.getVisibleCells()
       for entity in @human.getVisibleEntities()
         entity.draw(cq)
-        entity.invalidateCachedSprite()
 
       cq.context.globalAlpha = 0.5
       # now draw only the remembered ones
@@ -183,7 +276,6 @@ require [
   class Drawable
     constructor: (@x, @y) ->
       @timeCreated = Date.now()
-      @invalidateCachedSprite()
 
     animationMillis: () => Date.now() - @timeCreated
 
@@ -207,15 +299,8 @@ require [
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
 
-    invalidateCachedSprite: () =>
-      @cachedSpriteLocation = null
-    calculateCachedSprite: () =>
-      @cachedSpriteLocation = @spriteLocation()
-
     draw: (cq) =>
-      if not @cachedSpriteLocation
-        @calculateCachedSprite()
-      sprites = @cachedSpriteLocation
+      sprites = @spriteLocation()
       if not _.isArray(sprites)
         sprites = [sprites]
 
@@ -247,25 +332,59 @@ require [
 
     initialize: () ->
 
+  # A cell should implement the Drawable interface
+  #   which comprises only the spriteLocation method
+  class Cell extends Backbone.Model
+    initialize: () ->
+      @x = @get("cell").get("x")
+      @y = @get("cell").get("y")
 
-  # cell invariant: constructor args are only "x, y"
-  class Cell extends Drawable
-    constructor: (@x, @y) ->
-      super(@x, @y)
+      @dependenciesCollection = new Backbone.Collection(@dependencies())
+      @listenTo(@dependenciesCollection, "change", @recompute)
+      @recompute()
 
-    #spriteLocation invariant: spriteLocation only depends on neighbors
+    recompute: () =>
+      deps = @dependenciesCollection.map((cell) -> cell.get("type"))
+      sprite = @getSpriteLocation(deps)
+      @get("cell").set("spriteLocation", sprite)
+
+    # TODO is this method even used anymore?
+    spriteLocation: () =>
+      @get("cell").get("spriteLocation")
 
     @colliding: false
 
+    # an Array[ DependentCell ]
+    dependencies: () ->
+      throw "not implemented"
+
+    neighbors: () =>
+      world = @get("cell").get("world")
+      _.without([
+        world.getCell(@x - 1, @y)
+        world.getCell(@x + 1, @y)
+        world.getCell(@x, @y - 1)
+        world.getCell(@x, @y + 1)
+      ], null)
+
+    getSpriteLocation: (deps) ->
+      throw "not implemented"
+
+    draw: (cq) =>
+      Drawable::draw.call(this, cq)
+
   class Grass extends Cell
-    spriteLocation: () => { x: 21, y: 4 }
+    dependencies: () -> []
+    getSpriteLocation: (deps) -> { x: 21, y: 4 }
 
   class DryGrass extends Cell
-    maybeGrassSprite: () =>
-      left = (@world.getCell(@x-1, @y) instanceof Grass)
-      right = (@world.getCell(@x+1, @y) instanceof Grass)
-      up = (@world.getCell(@x, @y-1) instanceof Grass)
-      down = (@world.getCell(@x, @y+1) instanceof Grass)
+    dependencies: () => @neighbors()
+
+    maybeGrassSprite: (namedDeps) =>
+      left = (namedDeps.left is Grass)
+      right = (namedDeps.right is Grass)
+      up = (namedDeps.up is Grass)
+      down = (namedDeps.down is Grass)
       if left
         if up
           {x: 24, y: 5}
@@ -287,29 +406,33 @@ require [
       else
         null
 
-    maybeWallSprite: () =>
-      down = (@world.getCell(@x, @y+1) instanceof Wall)
+    maybeWallSprite: (namedDeps) =>
+      down = (namedDeps.down == Wall)
       if down
         {x: 23, y: 10}
       else
         null
 
-    spriteLocation: () =>
-      @maybeGrassSprite() || @maybeWallSprite() || {x: 21, y: 0}
+    getSpriteLocation: (deps) =>
+      namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
+      @maybeGrassSprite(namedDeps) || @maybeWallSprite(namedDeps) || {x: 21, y: 0}
 
   class Wall extends Cell
     @colliding: true
 
-    maybeDryGrassSprite: () =>
-      down = (@world.getCell(@x, @y+1) instanceof DryGrass)
+    dependencies: () => @neighbors()
+
+    maybeDryGrassSprite: (namedDeps) =>
+      down = namedDeps.down is DryGrass
       if down
         {x: 23, y: 13}
       else
         null
 
-    spriteLocation: () =>
+    getSpriteLocation: (deps) =>
+      namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
       # [ {x: 22, y: 6}, {x: 23, y: 6}, {x: 22, y: 7}, {x: 23, y: 7} ]
-      @maybeDryGrassSprite() || {x: 22, y: 6}
+      @maybeDryGrassSprite(namedDeps) || {x: 22, y: 6}
 
   class Entity extends Drawable
     constructor: (@x, @y) ->
@@ -321,7 +444,7 @@ require [
       Math.distance(cell, this)
 
     findCellsWithin: (manhattanDist) =>
-      _.flatten((cell for cell in row when @distanceTo(cell) <= manhattanDist) for row in @world.map)
+      _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map)
 
     findEntitiesWithin: (manhattanDist) =>
       _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
@@ -440,13 +563,13 @@ require [
         console.log("cannot occupy that space!")
         @actions = []
       else
-        @actions = 
+        @actions =
           if @distanceThreshold > 0
             Search.findPath(
               @human,
               (cell) => Math.distance(cell, @pt) <= @distanceThreshold
             )
-          else 
+          else
             Search.findPathTo(@human, @pt)
         if not @actions
           console.log("no path!")
@@ -588,13 +711,13 @@ require [
       )
 
 
-    getVisibleCells: () => 
+    getVisibleCells: () =>
       recomputeVisibleCells = () => @findCellsWithin(@sightRange)
       if not @visibleCellsCache
         @visibleCellsCache = recomputeVisibleCells()
       @visibleCellsCache
 
-    getVisibleEntities: () => 
+    getVisibleEntities: () =>
       recomputeVisibleEntities = () => @findEntitiesWithin(@sightRange)
       if not @visibleEntitiesCache
         @visibleEntitiesCache = recomputeVisibleEntities()
@@ -798,7 +921,7 @@ require [
     #   entity = @world.entityAt(x, y)
     #   if entity isnt null
     #     {
-    #       House: () => new 
+    #       House: () => new
     #     }
 
     onmousedown: (x, y, button) ->
