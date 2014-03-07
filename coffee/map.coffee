@@ -2,8 +2,9 @@ define [
   'backbone'
   'rectangle'
   'game/drawable'
+  'action'
   'search'
-], (Backbone, Rectangle, Drawable, Search) ->
+], (Backbone, Rectangle, Drawable, Action, Search) ->
 
   # A cell should implement the Drawable interface
   #   which comprises only the spriteLocation method
@@ -116,12 +117,26 @@ define [
         null
 
     # Assumes entity is in world
-    closestAvailableSpot: (entity, pt) ->
-      Search.bfs(
-        entity: entity
-        start: pt
-        goalPredicate: (pt) -> entity.canOccupy(pt.x, pt.y)
-      ).endState
+    closestAvailableSpot: (entity, wantedPt) ->
+      # keep a fringe of possible spots that you haven't checked yet; this fringe
+      # is sorted by distance so the closest ones will always be popped off first (it's a queue)
+      #
+      queue = [wantedPt]
+      visited = {} # keys are JSON.stringify({x, y}) objects
+      while not _.isEmpty(queue)
+        pt = queue.shift()
+
+        continue if visited[JSON.stringify(pt)]
+        visited[JSON.stringify(pt)] = true
+
+        if entity.canOccupy(pt.x, pt.y)
+          return pt
+        else
+          for action in Action.Directionals
+            nextPt = {x: pt.x + action.offset.x, y: pt.y + action.offset.y}
+            queue.push(nextPt)
+
+      return null
 
     notifyLeaving: (entity) =>
       for pt in entity.getHitbox().allPoints()

@@ -314,8 +314,18 @@ require [
     findTilesWithin: (manhattanDist) =>
       _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map.cells)
 
+    # Return Entities with distance <= manhattanDist (compares Entity locations, no hitbox information)
     findEntitiesWithin: (manhattanDist) =>
       _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
+
+    # Returns true iff the given entity's location is within 1 square of this Entity's hitbox
+    # NOTE e1.isNeighbor(e2) is not always the same as e2.isNeighbor(e1); if e1 and e2 are both
+    # large (bigger than 1 unit hitbox), isNeighbor may return false even though the two entities
+    # are touching.
+    #
+    # Always do biggerEntity.isNeighbor(smallerEntity)
+    isNeighbor: (entity) =>
+      _.findWhere(@getHitbox().neighbors(), _.pick(entity, "x", "y"))? or _.findWhere(entity.getHitbox().neighbors(), _.pick(this, "x", "y"))?
 
     checkConsistency: () =>
       throw "bad position" unless @world.withinMap(@x, @y)
@@ -431,15 +441,17 @@ require [
 
     constructor: (@human, @pt) ->
       super(@human)
-      console.log("Cannot walk to a #{@pt}") unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      # throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
+      throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       @pt = @human.world.map.closestAvailableSpot(@human, _.pick(@pt, "x", "y"))
 
-      @actions = Search.findPathTo(@human, @pt)
-      if not @actions
+      # this should never happen
+      throw "There is no place for you to go!" unless @pt?
+
+      try
+        @actions = Search.findPathTo(@human, @pt)
+      catch
         console.log("no path!")
         @actions = []
-      # throw "no path!" unless @actions
 
     isComplete: () => _.isEmpty(@actions)
 
@@ -453,14 +465,17 @@ require [
 
     # Has the same behavior as (new WalkNear().isAlsoCompleteWhen(nearby check)).
     isComplete: () =>
-      super() || _.findWhere(@entity.getHitbox().neighbors(), _.pick(@human, "x", "y"))?
+      super() || @entity.isNeighbor(@human)
 
   class Consume extends Task
     constructor: (@human, @food) ->
       super(@human)
+
     isComplete: () => @food.amount <= 0 or @human.hunger <= 0
 
     nextAction: () =>
+      if not @human.isNeighbor(@food)
+        @cancel("Cannot reach food!")
       return new Action.Consume(@food)
 
   class Eat extends TaskList
@@ -525,10 +540,11 @@ require [
 
     isComplete: () => @turnsLeft == 0
     nextAction: () =>
-      if @human.world.map.hasRoomFor(@entity)
-        new BuildAction(this)
-      else
+      if not @human.world.map.hasRoomFor(@entity)
         @cancel("No room to build #{@entity.constructor.name}!")
+      if not @entity.isNeighbor(@human)
+        @cancel("#{@human.constructor.name} cannot reach building!")
+      new BuildAction(this)
 
   # Walk to an unplaced Entity and Build it
   class Construct extends TaskList
@@ -593,6 +609,10 @@ require [
         @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
         @rememberedEntities = @rememberedEntities.concat(_.difference(lastVisibleEntities, @getVisibleEntities()))
       )
+      $(@world).on("poststep", () =>
+        if @hunger > 1000 or @tired > 1000
+          @die()
+      )
 
 
     getVisibleTiles: () =>
@@ -622,19 +642,19 @@ require [
     possibleTasks: () =>
       tasks = [ () => @currentTask ]
 
-      if @hunger > 300
-        tasks.push( () =>
-          closestFood = @closestKnown(Food)
-          if closestFood
-            new Eat(this, closestFood)
-          else
-            false
-        )
+      # if @hunger > 300
+      #   tasks.push( () =>
+      #     closestFood = @closestKnown(Food)
+      #     if closestFood
+      #       new Eat(this, closestFood)
+      #     else
+      #       false
+      #   )
 
-      if @tired > 200
-        tasks.push( () =>
-          (new GoHome(this)).andThen(new Sleep(this))
-        )
+      # if @tired > 200
+      #   tasks.push( () =>
+      #     (new GoHome(this)).andThen(new Sleep(this))
+      #   )
 
       tasks
 
@@ -799,7 +819,10 @@ require [
       setupDebug(this)
 
     onstep: (delta, time) ->
-      @world.stepAll()
+      if @world.human.isDead()
+        alert("You died!")
+      else
+        @world.stepAll()
 
     stepRate: 20
 
