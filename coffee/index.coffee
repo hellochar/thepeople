@@ -359,12 +359,11 @@ require [
 
     recompute: () =>
       deps = @dependenciesCollection.map((cell) -> cell.get("type"))
-      sprite = @getSpriteLocation(deps)
-      @get("cell").set("spriteLocation", sprite)
+      @sprite = @getSpriteLocation(deps)
 
     # TODO is this method even used anymore?
     spriteLocation: () =>
-      @get("cell").get("spriteLocation")
+      @sprite
 
     @colliding: false
 
