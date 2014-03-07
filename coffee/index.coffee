@@ -94,19 +94,19 @@ require [
 
   ###
   #
-  # DependentCell extending Backbone.Events to hold
+  # Cell extending Backbone.Events to hold
   # cell type (which in turn controls occupied, sprite, etc.)
   #
   # Backbone library is there; requireConfig not setup; not imported yet
   #
-  # Need to find codebase that touches Cell and make it work with DependentCell, which is a
+  # Need to find codebase that touches Cell and make it work with Cell, which is a
   # a mutable container Cell with eventing; instead of "replacing"
   # the current cell with a new cell, update the "cell type" of the cell
   # at the given location
   #
   #
   #
-  # # Has a "cell" DependentCell which it lives in
+  # # Has a "cell" Cell which it lives in
   # class Tile extends Backbone.Model
   #   initialize: () ->
   #     cell = @get("cell")
@@ -158,8 +158,8 @@ require [
   #     spriteLocation() on the current cell always
   #     draw: (cq) =>
   #
-  # DependentCell API:
-  #   you need to: construct new DependentCell({x, y}) # DO NOT pass in a type to begin with!
+  # Cell API:
+  #   you need to: construct new Cell({x, y}) # DO NOT pass in a type to begin with!
   #                set tiles with cell.set("tile", tile)
   #
   #   you get:
@@ -170,8 +170,8 @@ require [
 
   class Map
 
-    # {x, y, type which is a Tile constructor}; you can access get("spriteLocation")
-    class DependentCell extends Backbone.Model
+    # {x, y, type which is a Tile constructor}
+    class Cell extends Backbone.Model
       initialize: () =>
         @listenTo(this, "change:type", (model, type, opts) =>
           if @tileInstance
@@ -185,7 +185,7 @@ require [
       @cells =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
-            new DependentCell({x: x, y: y, map: this})
+            new Cell({x: x, y: y, map: this})
 
       for y in [ 0...@height ]
         for x in [ 0...@width ]
