@@ -723,16 +723,16 @@ require [
         y: 0
       }
 
-    render: (cq, keys, mouseX, mouseY) =>
+    render: (cq, delta, keys, mouseX, mouseY) =>
       # oh god this is so bad
       cq.CELL_PIXEL_SIZE = CELL_PIXEL_SIZE
       $(@world).trigger("prerender")
 
       mapping = {
-        w: () => @camera.y += 1
-        s: () => @camera.y -= 1
-        a: () => @camera.x += 1
-        d: () => @camera.x -= 1
+        w: () => @camera.y += 1 * delta / 32
+        s: () => @camera.y -= 1 * delta / 32
+        a: () => @camera.x += 1 * delta / 32
+        d: () => @camera.x -= 1 * delta / 32
       }
 
       for key, fn of mapping
@@ -777,8 +777,8 @@ require [
 
     stepRate: 20
 
-    onrender: () ->
-      @renderer.render(@cq, @keys, @mouseX, @mouseY)
+    onrender: (delta, time) ->
+      @renderer.render(@cq, delta, @keys, @mouseX, @mouseY)
 
     # window resize
     onresize: (width, height) ->
