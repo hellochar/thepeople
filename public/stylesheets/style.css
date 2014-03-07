@@ -2,3 +2,17 @@ body {
     margin: 0;
     overflow: hidden;
 }
+
+#viewport {
+    height: 100%;
+    width: 70%;
+    display: inline-block;
+    float: left;
+}
+
+#unitinfo {
+    display: inline-block;
+    height: 100%;
+    width: 30%;
+    float: left;
+}

@@ -767,8 +767,9 @@ require [
       @mouseY = 0
 
       @cq = cq().framework(this, this)
+      @cq.canvas.width = (@cq.canvas.width * 0.7) | 0
       @cq.canvas.oncontextmenu = () -> false
-      @cq.appendTo("body")
+      @cq.appendTo("#viewport")
 
       setupDebug(this)
 
