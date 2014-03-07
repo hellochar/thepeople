@@ -2,7 +2,8 @@ define [
   'backbone'
   'rectangle'
   'game/drawable'
-], (Backbone, Rectangle, Drawable) ->
+  'search'
+], (Backbone, Rectangle, Drawable, Search) ->
 
   # A cell should implement the Drawable interface
   #   which comprises only the spriteLocation method
@@ -89,11 +90,21 @@ define [
       else
         null
 
+    closestAvailableSpot: (entity, pt) ->
+      Search.bfs(
+        entity: entity
+        start: pt
+        goalPredicate: (pt) -> entity.canOccupy(pt.x, pt.y)
+      ).endState
+
     notifyLeaving: (entity) =>
       for pt in entity.getHitbox().allPoints()
         @pathfindingMatrix[pt.y][pt.x] = 0
 
     notifyEntering: (entity) =>
+      if not entity.canOccupy(entity.x, entity.y)
+        throw "#{entity} entering on a bad location!"
+      console.log("#{entity} entered!")
       for pt in entity.getHitbox().allPoints()
         @pathfindingMatrix[pt.y][pt.x] = 1
 

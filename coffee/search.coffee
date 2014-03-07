@@ -27,7 +27,7 @@ define [
       visited[JSON.stringify(path.endState)] = true
 
       if goalPredicate(path.endState)
-        return path.actions
+        return path
       else
         for action in [Action.Left, Action.Right, Action.Up, Action.Down]
           newPath = path.addSegment(action)
@@ -40,7 +40,7 @@ define [
       entity: entity
       start: _.pick(entity, "x", "y")
       goalPredicate: goalPredicate
-    )
+    )?.actions
 
   findPathTo = (entity, goal) ->
     map = entity.world.map
@@ -64,6 +64,7 @@ define [
 
 
   Search = {
+    bfs: bfs
     findPath: findPath
     findPathTo: findPathTo
   }

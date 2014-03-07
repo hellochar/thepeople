@@ -346,6 +346,7 @@ require [
         world.isUnoccupied(pt.x, pt.y, @)
       )
 
+    toString: () => "[#{@constructor.name}, age #{@age()} (#{@x}, #{@y})]"
 
     step: () => throw "not implemented"
 
@@ -419,29 +420,19 @@ require [
 
     toString: () => @currentTask().toString()
 
-  class WalkTo extends Task
+  class WalkNear extends Task
 
-    constructor: (@human, @pt, @distanceThreshold) ->
+    constructor: (@human, @pt) ->
       super(@human)
-      console.log("Cannot walk to #{@pt}") unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
+      console.log("Cannot walk to a #{@pt}") unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       # throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      @pt = _.pick(@pt, "x", "y")
-      if @distanceThreshold is 0 and not @human.canOccupy(@pt.x, @pt.y)
-        console.log("cannot occupy that space!")
+      @pt = @human.world.map.closestAvailableSpot(@human, _.pick(@pt, "x", "y"))
+
+      @actions = Search.findPathTo(@human, @pt)
+      if not @actions
+        console.log("no path!")
         @actions = []
-      else
-        @actions =
-          if @distanceThreshold > 0
-            Search.findPath(
-              @human,
-              (cell) => Math.distance(cell, @pt) <= @distanceThreshold
-            )
-          else
-            Search.findPathTo(@human, @pt)
-        if not @actions
-          console.log("no path!")
-          @actions = []
-        # throw "no path!" unless @actions
+      # throw "no path!" unless @actions
 
     isComplete: () => _.isEmpty(@actions)
 
@@ -458,9 +449,9 @@ require [
 
   class Eat extends TaskList
     constructor: (@human, @food) ->
-      super(@human, [new WalkTo(@human, @food, 1), new Consume(@human, @food)])
+      super(@human, [new WalkNear(@human, @food), new Consume(@human, @food)])
 
-  class GoHome extends WalkTo
+  class GoHome extends WalkNear
     constructor: (@human) ->
       # find closest free bed and sleep
       houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof House)
@@ -469,7 +460,7 @@ require [
       )
       closestBed = _.min(freeBeds, @human.distanceTo)
 
-      super(@human, closestBed, 0)
+      super(@human, closestBed)
 
   class Sleep extends Task
     constructor: (@human) ->
@@ -800,7 +791,7 @@ require [
     onmousedown: (x, y, button) ->
       pt = @renderer.cellPosition(x, y)
       if @world.human.canOccupy(pt.x, pt.y)
-        @world.human.currentTask = new WalkTo(@world.human, pt, 0)
+        @world.human.currentTask = new WalkNear(@world.human, pt)
 
     onmousemove: (x, y) ->
       @mouseX = x
@@ -818,14 +809,14 @@ require [
         if house
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
-          @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
+          @world.human.currentTask = (new WalkNear(@world.human, pt).andThen(new Build(@world.human, house)))
       else if key is 'h'
         @world.human.currentTask = new GoHome(@world.human)
       else if key is 'q'
         pt = @renderer.cellPosition(@mouseX, @mouseY)
         human = tryConstruct(@world.human, Human, [pt.x, pt.y])
         if human
-          @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, human)))
+          @world.human.currentTask = (new WalkNear(@world.human, pt).andThen(new Build(@world.human, human)))
 
     onkeyup: (key) ->
       delete @keys[key]
