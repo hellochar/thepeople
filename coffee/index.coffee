@@ -185,7 +185,7 @@ require [
       @cells =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
-            new DependentCell({x: x, y: y, world: this})
+            new DependentCell({x: x, y: y, map: this})
 
       for y in [ 0...@height ]
         for x in [ 0...@width ]
@@ -348,7 +348,12 @@ require [
       @x = @get("cell").get("x")
       @y = @get("cell").get("y")
 
-      @dependenciesCollection = new Backbone.Collection(@dependencies())
+      depOffsets = @dependencies()
+      map = @get("cell").get("map")
+      depCells = for offset in depOffsets
+        loc = {x: @x + offset.x, y: @y + offset.y}
+        map.getCell(loc.x, loc.y)
+      @dependenciesCollection = new Backbone.Collection(depCells)
       @listenTo(@dependenciesCollection, "change", @recompute)
       @recompute()
 
@@ -363,18 +368,16 @@ require [
 
     @colliding: false
 
-    # an Array[ DependentCell ]
+    # an Array[ {x, y} ]
     dependencies: () ->
       throw "not implemented"
 
-    neighbors: () =>
-      world = @get("cell").get("world")
-      _.without([
-        world.getCell(@x - 1, @y)
-        world.getCell(@x + 1, @y)
-        world.getCell(@x, @y - 1)
-        world.getCell(@x, @y + 1)
-      ], null)
+    neighbors: () => [
+      { x: -1, y: 0},
+      { x: +1, y: 0},
+      { x: 0, y: -1},
+      { x: 0, y: +1}
+    ]
 
     getSpriteLocation: (deps) ->
       throw "not implemented"
