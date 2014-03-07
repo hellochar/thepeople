@@ -1,6 +1,3 @@
-window.asdf = (x, y) ->
-  [(x/32) | 0, (y/32) | 0]
-
 require [
   'jquery',
   'underscore'
@@ -13,7 +10,8 @@ require [
   'map'
   'action'
   'search'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search) ->
+  'game/drawable'
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search, Drawable) ->
 
   'use strict'
 
@@ -21,8 +19,6 @@ require [
 
   Math.distance = (a, b) ->
     Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-
-  CELL_PIXEL_SIZE = 32
 
 
   #
@@ -228,123 +224,12 @@ require [
       cq.context.globalAlpha = 1.0
 
 
-  class Spritesheets
-    @mapping: {}
 
-    @get: (name) ->
-      if not @mapping[name]
-        s = new Image()
-        s.src = "/images/spritesheets/#{name}.png"
-        @mapping[name] = s
-      @mapping[name]
-
-  class Drawable
-    constructor: (@x, @y) ->
-      @timeCreated = Date.now()
-
-    animationMillis: () => Date.now() - @timeCreated
-
-    # {
-    #   -- sprite sheet location
-    #   x, y,
-    #
-    #   -- dimensions of the sprite sheet cells
-    #   width: 1, height: 1
-    #
-    #   -- offset to draw on the map
-    #   dx: 0 (float)
-    #   dy: 0 (float)
-    #
-    #
-    #   -- rotation (ccw in degrees)
-    #   rotation: 0
-    #
-    #   spritesheet: "tiles1"
-    # }
-    # or an array of those objects
-    spriteLocation: () => throw "not implemented"
-
-    draw: (cq) =>
-      sprites = @spriteLocation()
-      if not _.isArray(sprites)
-        sprites = [sprites]
-
-      for sprite in sprites
-        throw "bad sprite #{sprite}" unless _.isObject(sprite)
-        sx = sprite.x
-        sy = sprite.y
-        width = sprite.width || 1
-        height = sprite.height || 1
-        dx = sprite.dx || 0
-        dy = sprite.dy || 0
-        spritesheetName = sprite.spritesheet || "tiles1"
-        spritesheet = Spritesheets.get(spritesheetName)
-        tileSize = 32
-        rotation = (-sprite.rotation || 0) * Math.PI / 180
-
-        if rotation != 0
-          cq.save()
-          imageWidth = width * CELL_PIXEL_SIZE
-          imageHeight = height * height * CELL_PIXEL_SIZE
-          cq.translate((@x + dx) * CELL_PIXEL_SIZE + imageWidth / 2, (@y + dy) * CELL_PIXEL_SIZE + imageHeight / 2)
-          cq.rotate(rotation)
-          cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, -imageWidth / 2, -imageHeight / 2, imageWidth, imageHeight)
-          cq.restore()
-        else
-          # optimize the unrotated case (which is most cases)
-          cq.drawImage(spritesheet, sx * tileSize, sy * tileSize, width * tileSize, height * tileSize, (@x + dx) * CELL_PIXEL_SIZE, (@y + dy) * CELL_PIXEL_SIZE, width * CELL_PIXEL_SIZE, height * CELL_PIXEL_SIZE)
-
-
-    initialize: () ->
-
-  # A cell should implement the Drawable interface
-  #   which comprises only the spriteLocation method
-  class Tile extends Backbone.Model
-    initialize: () ->
-      @x = @get("cell").get("x")
-      @y = @get("cell").get("y")
-
-      depOffsets = @dependencies()
-      map = @get("cell").get("map")
-      depCells = for offset in depOffsets
-        loc = {x: @x + offset.x, y: @y + offset.y}
-        map.getCell(loc.x, loc.y)
-      @dependenciesCollection = new Backbone.Collection(depCells)
-      @listenTo(@dependenciesCollection, "change", @recompute)
-      @recompute()
-
-    recompute: () =>
-      deps = @dependenciesCollection.map((cell) -> cell.get("type"))
-      @sprite = @getSpriteLocation(deps)
-
-    # TODO is this method even used anymore?
-    spriteLocation: () =>
-      @sprite
-
-    @colliding: false
-
-    # an Array[ {x, y} ]
-    dependencies: () ->
-      throw "not implemented"
-
-    neighbors: () => [
-      { x: -1, y: 0},
-      { x: +1, y: 0},
-      { x: 0, y: -1},
-      { x: 0, y: +1}
-    ]
-
-    getSpriteLocation: (deps) ->
-      throw "not implemented"
-
-    draw: (cq) =>
-      Drawable::draw.call(this, cq)
-
-  class Grass extends Tile
+  class Grass extends Map.Tile
     dependencies: () -> []
     getSpriteLocation: (deps) -> { x: 21, y: 4 }
 
-  class DryGrass extends Tile
+  class DryGrass extends Map.Tile
     dependencies: () => @neighbors()
 
     maybeGrassSprite: (namedDeps) =>
@@ -384,7 +269,7 @@ require [
       namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
       @maybeGrassSprite(namedDeps) || @maybeWallSprite(namedDeps) || {x: 21, y: 0}
 
-  class Wall extends Tile
+  class Wall extends Map.Tile
     @colliding: true
 
     dependencies: () => @neighbors()
@@ -407,9 +292,15 @@ require [
 
     # Only move Entities through this method
     move: (offset) =>
-      @x += offset.x
-      @y += offset.y
-      @checkConsistency()
+      @setLocation(@x + offset.x, @y + offset.y)
+
+    setLocation: (x, y) =>
+      if @canOccupy(x, y)
+        @world.map.notifyLeaving(this, x, y)
+        @x = x
+        @y = y
+        @world.map.notifyEntering(this, x, y)
+        @checkConsistency()
 
     age: () => @world.age - @birth
 
@@ -770,6 +661,7 @@ require [
 
     draw: (cq) =>
       super(cq)
+      CELL_PIXEL_SIZE = cq.CELL_PIXEL_SIZE
       actionString = if @currentAction.toString() then @currentAction.toString() + ", " else ""
       taskString = if @currentTask then @currentTask.toString() + ", " else ""
       text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
@@ -817,6 +709,7 @@ require [
 
 
   class Renderer
+    CELL_PIXEL_SIZE = 32
     constructor: (@world) ->
       @camera = {
         x: 0
@@ -824,6 +717,8 @@ require [
       }
 
     render: (cq, keys, mouseX, mouseY) =>
+      # oh god this is so bad
+      cq.CELL_PIXEL_SIZE = CELL_PIXEL_SIZE
       $(@world).trigger("prerender")
 
       mapping = {
@@ -903,7 +798,7 @@ require [
       @mouseY = y
 
     onmousewheel: (delta) ->
-      CELL_PIXEL_SIZE *= Math.pow(1.05, delta)
+      # CELL_PIXEL_SIZE *= Math.pow(1.05, delta)
 
     # keyboard events
     onkeydown: (key) ->

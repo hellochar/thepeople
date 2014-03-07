@@ -1,7 +1,52 @@
 define [
   'backbone'
   'rectangle'
-], (Backbone, Rectangle) ->
+  'game/drawable'
+], (Backbone, Rectangle, Drawable) ->
+
+  # A cell should implement the Drawable interface
+  #   which comprises only the spriteLocation method
+  class Tile extends Backbone.Model
+    initialize: () ->
+      @x = @get("cell").get("x")
+      @y = @get("cell").get("y")
+
+      depOffsets = @dependencies()
+      map = @get("cell").get("map")
+      depCells = for offset in depOffsets
+        loc = {x: @x + offset.x, y: @y + offset.y}
+        map.getCell(loc.x, loc.y)
+      @dependenciesCollection = new Backbone.Collection(depCells)
+      @listenTo(@dependenciesCollection, "change", @recompute)
+      @recompute()
+
+    recompute: () =>
+      deps = @dependenciesCollection.map((cell) -> cell.get("type"))
+      @sprite = @getSpriteLocation(deps)
+
+    # TODO is this method even used anymore?
+    spriteLocation: () =>
+      @sprite
+
+    @colliding: false
+
+    # an Array[ {x, y} ]
+    dependencies: () ->
+      throw "not implemented"
+
+    neighbors: () => [
+      { x: -1, y: 0},
+      { x: +1, y: 0},
+      { x: 0, y: -1},
+      { x: 0, y: +1}
+    ]
+
+    getSpriteLocation: (deps) ->
+      throw "not implemented"
+
+    draw: (cq) =>
+      Drawable::draw.call(this, cq)
+
 
   # {x, y, type which is a Tile constructor}
   class Cell extends Backbone.Model
@@ -43,5 +88,16 @@ define [
         @cells[y][x]
       else
         null
+
+    notifyLeaving: (entity, x, y) =>
+      for pt in entity.getHitbox().allPoints()
+        @pathfindingMatrix[pt.y][pt.x] = 0
+
+    notifyEntering: (entity, x, y) =>
+      for pt in entity.getHitbox().allPoints()
+        @pathfindingMatrix[pt.y][pt.x] = 1
+
+
+  Map.Tile = Tile
 
   Map

@@ -43,16 +43,11 @@ define [
     )
 
   findPathTo = (entity, goal) ->
-    world = entity.world
-    matrix = for y in [0...world.height]
-      for x in [0...world.width]
-        if world.isUnoccupied(x, y)
-          0
-        else
-          1
+    map = entity.world.map
+    matrix = map.pathfindingMatrix
 
 
-    grid = new PathFinding.Grid(world.width, world.height, matrix)
+    grid = new PathFinding.Grid(map.width, map.height, matrix)
     finder = new PathFinding.AStarFinder()
     # [ [x, y], [x, y], [x, y] ]
     states = finder.findPath(entity.x, entity.y, goal.x, goal.y, grid)
