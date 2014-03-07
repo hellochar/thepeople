@@ -251,13 +251,13 @@ require [
       # ((cell.draw(cq) for cell in row) for row in @map)
       # for entity in @entities
       #   entity.draw(cq)
-      cell.draw(cq) for cell in @human.getVisibleCells()
+      cell.draw(cq) for cell in @human.getVisibleTiles()
       for entity in @human.getVisibleEntities()
         entity.draw(cq)
 
       cq.context.globalAlpha = 0.5
       # now draw only the remembered ones
-      cell.draw(cq) for cell in @human.rememberedCells
+      cell.draw(cq) for cell in @human.rememberedTiles
       e.draw(cq) for e in @human.rememberedEntities
 
       cq.context.globalAlpha = 1.0
@@ -334,7 +334,7 @@ require [
 
   # A cell should implement the Drawable interface
   #   which comprises only the spriteLocation method
-  class Cell extends Backbone.Model
+  class Tile extends Backbone.Model
     initialize: () ->
       @x = @get("cell").get("x")
       @y = @get("cell").get("y")
@@ -373,11 +373,11 @@ require [
     draw: (cq) =>
       Drawable::draw.call(this, cq)
 
-  class Grass extends Cell
+  class Grass extends Tile
     dependencies: () -> []
     getSpriteLocation: (deps) -> { x: 21, y: 4 }
 
-  class DryGrass extends Cell
+  class DryGrass extends Tile
     dependencies: () => @neighbors()
 
     maybeGrassSprite: (namedDeps) =>
@@ -417,7 +417,7 @@ require [
       namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
       @maybeGrassSprite(namedDeps) || @maybeWallSprite(namedDeps) || {x: 21, y: 0}
 
-  class Wall extends Cell
+  class Wall extends Tile
     @colliding: true
 
     dependencies: () => @neighbors()
@@ -443,7 +443,7 @@ require [
     distanceTo: (cell) =>
       Math.distance(cell, this)
 
-    findCellsWithin: (manhattanDist) =>
+    findTilesWithin: (manhattanDist) =>
       _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map)
 
     findEntitiesWithin: (manhattanDist) =>
@@ -670,7 +670,7 @@ require [
       # Should be the last Action you took; used by the Renderer to display info about what you're doing
       @currentAction = new Action.Rest()
 
-      @visibleCellsCache = null
+      @visibleTilesCache = null
       @visibleEntitiesCache = null
 
       # The class of where you're facing
@@ -678,24 +678,24 @@ require [
 
     initialize: () =>
       # All cells you have seen previously, but cannot currently see
-      @rememberedCells = []
+      @rememberedTiles = []
       # All entities you have seen previously, but cannot currently see
       @rememberedEntities = []
 
-      lastVisibleCells = []
+      lastVisibleTiles = []
       lastVisibleEntities = []
       $(@world).on("prestep", () =>
-        lastVisibleCells = @getVisibleCells()
+        lastVisibleTiles = @getVisibleTiles()
         lastVisibleEntities = @getVisibleEntities()
       )
       $(@world).on("poststep", () =>
-        # to update the rememberedCells
+        # to update the rememberedTiles
         # 1. remove cells remembered last frame but visible now
         # 2. add in cells visible last frame but not visible now
         # this is still O( # of remembered cells )! Uh oh
-        @rememberedCells = _.difference(@rememberedCells, @getVisibleCells())
+        @rememberedTiles = _.difference(@rememberedTiles, @getVisibleTiles())
 
-        @rememberedCells = @rememberedCells.concat(_.difference(lastVisibleCells, @getVisibleCells()))
+        @rememberedTiles = @rememberedTiles.concat(_.difference(lastVisibleTiles, @getVisibleTiles()))
 
         # to update seenEntities
         # 1. remove entities remembered last frame that *should* be visible now but aren't
@@ -711,11 +711,11 @@ require [
       )
 
 
-    getVisibleCells: () =>
-      recomputeVisibleCells = () => @findCellsWithin(@sightRange)
-      if not @visibleCellsCache
-        @visibleCellsCache = recomputeVisibleCells()
-      @visibleCellsCache
+    getVisibleTiles: () =>
+      recomputeVisibleTiles = () => @findTilesWithin(@sightRange)
+      if not @visibleTilesCache
+        @visibleTilesCache = recomputeVisibleTiles()
+      @visibleTilesCache
 
     getVisibleEntities: () =>
       recomputeVisibleEntities = () => @findEntitiesWithin(@sightRange)
@@ -776,7 +776,7 @@ require [
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
-      @visibleCellsCache = null
+      @visibleTilesCache = null
       @visibleEntitiesCache = null
 
     spriteLocation: () =>
