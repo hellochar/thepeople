@@ -16,7 +16,7 @@ define [
     constructor: (@world, tileTypeFor) ->
       @width = @world.width
       @height = @world.height
-      @bounds = new Rectangle(0, 0, @width - 1, @height - 1)
+      @bounds = new Rectangle(0, 0, @width, @height)
       @cells =
         for y in [ 0...@height ]
           for x in [ 0...@width ]

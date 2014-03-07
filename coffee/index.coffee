@@ -17,15 +17,6 @@ require [
 
   'use strict'
 
-  withinRect = (x, y, xmin, xmax, ymin, ymax) ->
-    return Rectangle.bounded(xmin, ymin, xmax, ymax).within(x, y)
-
-  intersectRect = (r1, r2) ->
-    return !(r2.x > r1.x + r1.width ||
-             r2.x + r2.width < r1.x ||
-             r2.y > r1.height + r1.y ||
-             r2.height + r2.y < r1.y)
-
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
   Math.distance = (a, b) ->
@@ -206,7 +197,7 @@ require [
 
       for e in @entities
         rect = e.getHitbox()
-        if withinRect(x, y, rect.x, rect.x + rect.width - 1, rect.y, rect.y + rect.height - 1)
+        if rect.within(x, y)
           return e
 
       return null
@@ -446,21 +437,17 @@ require [
     # hitbox is an {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
     @hitbox: {x: 0, y: 0, width: 1, height: 1}
 
-    # returns an array of rectangles (x, y, width, height) associated with a specified pt (by default this Entity's location)
+    # returns a (x, y, width, height) associated with a specified pt (by default this Entity's location)
     getHitbox: (x = @x, y = @y) =>
       hitbox = @constructor.hitbox
-      x: x + hitbox.x
-      y: y + hitbox.y
-      width: hitbox.width || 1
-      height: hitbox.height || 1
+      new Rectangle(x + hitbox.x, y + hitbox.y, hitbox.width || 1, hitbox.height || 1)
 
     # returns true iff this Entity can occupy the given location
     canOccupy: (x, y, world = @world) =>
       rect = @getHitbox(x, y)
-      for x in [rect.x...rect.x + rect.width]
-        for y in [rect.y...rect.y + rect.height]
-          return false if not world.isUnoccupied(x, y, this)
-      return true
+      return _.every(rect.allPoints(), (pt) ->
+        world.isUnoccupied(pt.x, pt.y, this)
+      )
 
 
     step: () => throw "not implemented"
