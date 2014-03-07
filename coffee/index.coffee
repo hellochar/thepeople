@@ -9,14 +9,16 @@ require [
   'canvasquery'
   'canvasquery.framework'
   'construct'
+  'rectangle'
+  'map'
   'action'
   'search'
-], ($, _, Backbone, Stats, cq, eveline, construct, Action, Search) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search) ->
 
   'use strict'
 
   withinRect = (x, y, xmin, xmax, ymin, ymax) ->
-    return (x >= xmin && x <= xmax && y >= ymin && y <= ymax)
+    return Rectangle.bounded(xmin, ymin, xmax, ymax).within(x, y)
 
   intersectRect = (r1, r2) ->
     return !(r2.x > r1.x + r1.width ||
@@ -168,42 +170,6 @@ require [
   #
   ###
 
-  class Map
-
-    # {x, y, type which is a Tile constructor}
-    class Cell extends Backbone.Model
-      initialize: () =>
-        @listenTo(this, "change:type", (model, type, opts) =>
-          if @tileInstance
-            @tileInstance.stopListening()
-          @tileInstance = new type({cell: this})
-        )
-
-    constructor: (@world, tileTypeFor) ->
-      @width = @world.width
-      @height = @world.height
-      @cells =
-        for y in [ 0...@height ]
-          for x in [ 0...@width ]
-            new Cell({x: x, y: y, map: this})
-
-      for y in [ 0...@height ]
-        for x in [ 0...@width ]
-          @setTile(x, y, tileTypeFor(x, y))
-
-    withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
-
-    setTile: (x, y, tileType) =>
-      if @withinMap(x, y)
-        @cells[y][x].set("type", tileType)
-
-    getCell: (x, y) =>
-      if @withinMap(x, y)
-        @cells[y][x]
-      else
-        null
-
-
   class World
     constructor: (@width, @height, tileTypeFor) ->
       @age = 0
@@ -252,7 +218,6 @@ require [
       $(this).trigger("prestep")
       for entity in @entities
         entity.step()
-        entity.checkConsistency()
       $(this).trigger("poststep")
       @age += 1
 
@@ -448,6 +413,12 @@ require [
   class Entity extends Drawable
     constructor: (@x, @y) ->
       super(@x, @y)
+
+    # Only move Entities through this method
+    move: (offset) =>
+      @x += offset.x
+      @y += offset.y
+      @checkConsistency()
 
     age: () => @world.age - @birth
 

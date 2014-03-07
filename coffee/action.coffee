@@ -16,8 +16,7 @@ define [
     constructor: (@offset, @direction) ->
       throw "Bad direction" if isNaN(@offset.x) or isNaN(@offset.y)
     perform: (human) =>
-      human.x += @offset.x
-      human.y += @offset.y
+      human.move(@offset)
       human.facing = this
       human.hunger += 1
       human.tired += 1
