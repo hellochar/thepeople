@@ -456,12 +456,11 @@ require [
   class GoHome extends WalkTo
     constructor: (@human) ->
       # find closest free bed and sleep
-      openHouse = _.find(
-        _.filter(@human.getKnownEntities(),
-          (b) -> b instanceof House),
-        (b) => not _.isEmpty(b.getFreeBeds(@human)))
-
-      closestBed = _.min(openHouse.getFreeBeds(@human), @human.distanceTo)
+      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof House)
+      freeBeds = _.flatten(
+        _.map(houses, (b) => b.getFreeBeds(@human))
+      )
+      closestBed = _.min(freeBeds, @human.distanceTo)
 
       super(@human, closestBed, 0)
 
@@ -537,6 +536,8 @@ require [
       @facing = Action.Down
 
     initialize: () =>
+      @setLocation(@x, @y)
+
       # All cells you have seen previously, but cannot currently see
       @rememberedTiles = []
       # All entities you have seen previously, but cannot currently see
