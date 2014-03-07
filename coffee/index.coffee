@@ -168,27 +168,46 @@ require [
   #
   ###
 
-  class DependentCell extends Backbone.Model
-    # @x, @y, @tile which is a Tile constructor; you can access get("spriteLocation")
-    initialize: () =>
-      @listenTo(this, "change:type", (model, type, opts) =>
-        if @tileInstance
-          @tileInstance.stopListening()
-        @tileInstance = new type({cell: this})
-      )
+  class Map
 
-  class World
-    constructor: (@width, @height, cellTypeFor) ->
-      @age = 0
-      # Map is a 2D array of DependentCells
-      @map =
+    # {x, y, type which is a Tile constructor}; you can access get("spriteLocation")
+    class DependentCell extends Backbone.Model
+      initialize: () =>
+        @listenTo(this, "change:type", (model, type, opts) =>
+          if @tileInstance
+            @tileInstance.stopListening()
+          @tileInstance = new type({cell: this})
+        )
+
+    constructor: (@world, tileTypeFor) ->
+      @width = @world.width
+      @height = @world.height
+      @cells =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
             new DependentCell({x: x, y: y, world: this})
 
       for y in [ 0...@height ]
         for x in [ 0...@width ]
-          @setCellType(x, y, cellTypeFor(x, y))
+          @setTile(x, y, tileTypeFor(x, y))
+
+    withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
+
+    setTile: (x, y, tileType) =>
+      if @withinMap(x, y)
+        @cells[y][x].set("type", tileType)
+
+    getCell: (x, y) =>
+      if @withinMap(x, y)
+        @cells[y][x]
+      else
+        null
+
+
+  class World
+    constructor: (@width, @height, tileTypeFor) ->
+      @age = 0
+      @map = new Map(@, tileTypeFor)
 
       @entities = []
       @addEntity(new House(10, 10))
@@ -206,21 +225,11 @@ require [
       @entities.splice(idx, 1)
       entity
 
-    withinMap: (x, y) => withinRect(x, y, 0, @width - 1, 0, @height - 1)
-
-    setCellType: (x, y, cellType) =>
-      if @withinMap(x, y)
-        @map[y][x].set("type", cellType)
-
-    getCell: (x, y) =>
-      if @withinMap(x, y)
-        @map[y][x]
-      else
-        null
+    withinMap: (x, y) => @map.withinMap(x, y)
 
     isUnoccupied: (x, y, ignoredEntity = null) =>
       return false if not @withinMap(x, y)
-      return false if @getCell(x, y).get("type").colliding
+      return false if @map.getCell(x, y).get("type").colliding
       return false if @entityAt(x, y) isnt null and @entityAt(x, y) isnt ignoredEntity
       return true
 
@@ -444,7 +453,7 @@ require [
       Math.distance(cell, this)
 
     findTilesWithin: (manhattanDist) =>
-      _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map)
+      _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map.cells)
 
     findEntitiesWithin: (manhattanDist) =>
       _.filter(@world.entities, (e) => @distanceTo(e) <= manhattanDist)
