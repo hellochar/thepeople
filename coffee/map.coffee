@@ -79,6 +79,31 @@ define [
 
     withinMap: (x, y) => @bounds.within(x, y)
 
+    # returns true iff this Entity can occupy the given location
+    # assumes the Entity is already in the world
+    #
+    # It does this by asking if the entity could be added to the place if it wasn't already on the map
+    # (to prevent self-collisions)
+    canOccupy: (entity, x, y) =>
+      throw "Entity not in the world" unless entity.world is @world
+      @notifyLeaving(entity)
+      hasRoom = @hasRoomFor(entity, x, y)
+      @notifyEntering(entity)
+      hasRoom
+
+    # returns true iff the given point is free to be occupied by anybody
+    isUnoccupied: (x, y) =>
+      return false if not @withinMap(x, y)
+      unoccupied = not (!!@pathfindingMatrix[y][x])
+      return unoccupied
+
+    # returns whether this map could fit rect, if it were added to the world at the given location
+    # Call this to check availability of adding an Entity that isn't in the world yet
+    hasRoomFor: (entity, x = entity.x, y = entity.y) =>
+      _.every(entity.getHitbox(x, y).allPoints(), (pt) =>
+        @isUnoccupied(pt.x, pt.y)
+      )
+
     setTile: (x, y, tileType) =>
       if @withinMap(x, y)
         @cells[y][x].set("type", tileType)
@@ -90,6 +115,7 @@ define [
       else
         null
 
+    # Assumes entity is in world
     closestAvailableSpot: (entity, pt) ->
       Search.bfs(
         entity: entity
@@ -102,10 +128,9 @@ define [
         @pathfindingMatrix[pt.y][pt.x] = 0
 
     notifyEntering: (entity) =>
-      if not entity.canOccupy(entity.x, entity.y)
-        throw "#{entity} entering on a bad location!"
-      console.log("#{entity} entered!")
       for pt in entity.getHitbox().allPoints()
+        if @pathfindingMatrix[pt.y][pt.x]
+          throw "#{entity} entering on an already occupied location!"
         @pathfindingMatrix[pt.y][pt.x] = 1
 
 

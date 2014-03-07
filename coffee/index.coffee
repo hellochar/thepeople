@@ -182,11 +182,9 @@ require [
 
     withinMap: (x, y) => @map.withinMap(x, y)
 
-    isUnoccupied: (x, y, ignoredEntity = null) =>
-      return false if not @withinMap(x, y)
-      return false if @map.getCell(x, y).get("type").colliding
-      return false if @entityAt(x, y) isnt null and @entityAt(x, y) isnt ignoredEntity
-      return true
+    # Returns true iff the spot is free space
+    isUnoccupied: (x, y) =>
+      return @map.isUnoccupied(x, y)
 
     # TODO make this O(1) by caching entityAt's and only updating them
     # when an Entity moves
@@ -321,7 +319,6 @@ require [
 
     checkConsistency: () =>
       throw "bad position" unless @world.withinMap(@x, @y)
-      # throw "on top of another entity" if @world.entityAt(@x, @y) isnt this
 
     isDead: () => not _.contains(@world.entities, this)
 
@@ -339,14 +336,14 @@ require [
       hitbox = @constructor.hitbox
       new Rectangle(x + hitbox.x, y + hitbox.y, hitbox.width || 1, hitbox.height || 1)
 
-    # returns true iff this Entity can occupy the given location
-    canOccupy: (x, y, world = @world) =>
-      rect = @getHitbox(x, y)
-      return _.every(rect.allPoints(), (pt) =>
-        world.isUnoccupied(pt.x, pt.y, @)
-      )
+    canOccupy: (x, y) =>
+      @world.map.canOccupy(this, x, y)
 
-    toString: () => "[#{@constructor.name}, age #{@age()} (#{@x}, #{@y})]"
+    toString: () =>
+      if @world
+        "[#{@constructor.name}, age #{@age()} (#{@x}, #{@y})]"
+      else
+        "[#{@constructor.name}, not in world, (#{@x}, #{@y})]"
 
     step: () => throw "not implemented"
 
@@ -362,7 +359,7 @@ require [
     getFreeBeds: (human) =>
       beds = [{ x: @x + 1, y: @y},
               { x: @x, y: @y + 1}]
-      _.filter(beds, (pt) => @world.isUnoccupied(pt.x, pt.y, human))
+      _.filter(beds, (pt) => @world.isUnoccupied(pt.x, pt.y))
 
     @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
@@ -386,6 +383,10 @@ require [
 
   # Tasks can be seen as Action generators/iterators/streams
   class Task
+
+    @CancelledException = class CancelledException
+      constructor: (@reason) ->
+
     constructor: (@human, nextAction = undefined, isComplete = undefined, toString = undefined) ->
       @nextAction = nextAction if nextAction
       @isComplete = isComplete if isComplete
@@ -400,6 +401,12 @@ require [
     # compose this task with another task
     andThen: (@task) =>
       return new TaskList(@human, [this, @task])
+
+    # isAlsoCompleteWhen: (isComplete) =>
+    #   return new Task(@human, @nextAction, () => isComplete() or @isComplete(), @toString)
+
+    # Should only call in nextAction()
+    cancel: (reason) -> throw new Task.CancelledException(reason)
 
     toString: () => @constructor.name
 
@@ -439,6 +446,15 @@ require [
     nextAction: () =>
       return @actions.shift()
 
+  class WalkUntilNextTo extends WalkNear
+    # Assumes the entity doesn't move
+    constructor: (@human, @entity) ->
+      super(@human, _.pick(@entity, "x", "y"))
+
+    # Has the same behavior as (new WalkNear().isAlsoCompleteWhen(nearby check)).
+    isComplete: () =>
+      super() || _.findWhere(@entity.getHitbox().neighbors(), _.pick(@human, "x", "y"))?
+
   class Consume extends Task
     constructor: (@human, @food) ->
       super(@human)
@@ -472,7 +488,7 @@ require [
   # returns an Entity or null if you can't build there
   tryConstruct = (human, entityType, args) ->
     entity = construct(entityType, args)
-    if entity.canOccupy(entity.x, entity.y, human.world)
+    if human.world.map.hasRoomFor(entity)
       entity
     else
       null
@@ -508,7 +524,16 @@ require [
           human.world.addEntity(entity)
 
     isComplete: () => @turnsLeft == 0
-    nextAction: () => new BuildAction(this)
+    nextAction: () =>
+      if @human.world.map.hasRoomFor(@entity)
+        new BuildAction(this)
+      else
+        @cancel("No room to build #{@entity.constructor.name}!")
+
+  # Walk to an unplaced Entity and Build it
+  class Construct extends TaskList
+    constructor: (@human, @entity) ->
+      super(@human, [new WalkUntilNextTo(@human, @entity), new Build(@human, @entity)])
 
   class Human extends Entity
     constructor: (@x, @y) ->
@@ -624,7 +649,15 @@ require [
           break
       if doableTask
         @currentTask = doableTask
-        @currentTask.nextAction()
+        try
+          return @currentTask.nextAction()
+        catch err
+          if err instanceof Task.CancelledException
+            alert("Error: #{err.reason}")
+            @currentTask = null
+            return new Action.Rest()
+          else
+            throw err
       else
         @currentTask = null
         return new Action.Rest()
@@ -781,17 +814,9 @@ require [
         @cq.canvas.height = height
         @cq.canvas.width = (width * 0.7) | 0
 
-    # clickedBehavior: (x, y) ->
-    #   entity = @world.entityAt(x, y)
-    #   if entity isnt null
-    #     {
-    #       House: () => new
-    #     }
-
     onmousedown: (x, y, button) ->
       pt = @renderer.cellPosition(x, y)
-      if @world.human.canOccupy(pt.x, pt.y)
-        @world.human.currentTask = new WalkNear(@world.human, pt)
+      @world.human.currentTask = new WalkNear(@world.human, pt)
 
     onmousemove: (x, y) ->
       @mouseX = x
@@ -809,14 +834,14 @@ require [
         if house
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
-          @world.human.currentTask = (new WalkNear(@world.human, pt).andThen(new Build(@world.human, house)))
+          @world.human.currentTask = new Construct(@world.human, house)
       else if key is 'h'
         @world.human.currentTask = new GoHome(@world.human)
       else if key is 'q'
         pt = @renderer.cellPosition(@mouseX, @mouseY)
         human = tryConstruct(@world.human, Human, [pt.x, pt.y])
         if human
-          @world.human.currentTask = (new WalkNear(@world.human, pt).andThen(new Build(@world.human, human)))
+          @world.human.currentTask = new Construct(@world.human, human)
 
     onkeyup: (key) ->
       delete @keys[key]

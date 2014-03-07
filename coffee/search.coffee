@@ -43,11 +43,19 @@ define [
     )?.actions
 
   findPathTo = (entity, goal) ->
+    throw "Not in world!" unless entity.world?
+
+    return [] if entity.x is goal.x and entity.y is goal.y
+
     map = entity.world.map
-    matrix = map.pathfindingMatrix
 
+    # Remove the Entity from pathfinding so it doesn't block itself
+    map.notifyLeaving(entity)
+    grid = new PathFinding.Grid(map.width, map.height, map.pathfindingMatrix)
+    map.notifyEntering(entity)
 
-    grid = new PathFinding.Grid(map.width, map.height, matrix)
+    throw "Goal isn't walkable!" if not grid.isWalkableAt(goal.x, goal.y)
+
     finder = new PathFinding.AStarFinder()
     # [ [x, y], [x, y], [x, y] ]
     states = finder.findPath(entity.x, entity.y, goal.x, goal.y, grid)
