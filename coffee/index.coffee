@@ -423,8 +423,9 @@ require [
 
     constructor: (@human, @pt, @distanceThreshold) ->
       super(@human)
+      console.log("Cannot walk to #{@pt}") unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
+      # throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       @pt = _.pick(@pt, "x", "y")
-      throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       if @distanceThreshold is 0 and not @human.canOccupy(@pt.x, @pt.y)
         console.log("cannot occupy that space!")
         @actions = []
@@ -787,7 +788,7 @@ require [
       # change camera transform
       if @cq
         @cq.canvas.height = height
-        @cq.canvas.width = width
+        @cq.canvas.width = (width * 0.7) | 0
 
     # clickedBehavior: (x, y) ->
     #   entity = @world.entityAt(x, y)
@@ -820,6 +821,11 @@ require [
           @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, house)))
       else if key is 'h'
         @world.human.currentTask = new GoHome(@world.human)
+      else if key is 'q'
+        pt = @renderer.cellPosition(@mouseX, @mouseY)
+        human = tryConstruct(@world.human, Human, [pt.x, pt.y])
+        if human
+          @world.human.currentTask = (new WalkTo(@world.human, pt, 1).andThen(new Build(@world.human, human)))
 
     onkeyup: (key) ->
       delete @keys[key]
