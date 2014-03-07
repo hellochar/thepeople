@@ -89,11 +89,11 @@ define [
       else
         null
 
-    notifyLeaving: (entity, x, y) =>
+    notifyLeaving: (entity) =>
       for pt in entity.getHitbox().allPoints()
         @pathfindingMatrix[pt.y][pt.x] = 0
 
-    notifyEntering: (entity, x, y) =>
+    notifyEntering: (entity) =>
       for pt in entity.getHitbox().allPoints()
         @pathfindingMatrix[pt.y][pt.x] = 1
 

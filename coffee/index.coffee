@@ -170,12 +170,14 @@ require [
       entity.world = this
       entity.birth = @age
       @entities.push(entity)
+      @map.notifyEntering(entity)
       entity.initialize()
       entity
 
     removeEntity: (entity) =>
       idx = @entities.indexOf(entity)
       @entities.splice(idx, 1)
+      @map.notifyLeaving(entity)
       entity
 
     withinMap: (x, y) => @map.withinMap(x, y)
@@ -294,13 +296,17 @@ require [
     move: (offset) =>
       @setLocation(@x + offset.x, @y + offset.y)
 
+    # returns true or false if the move actually succeeds
     setLocation: (x, y) =>
       if @canOccupy(x, y)
-        @world.map.notifyLeaving(this, x, y)
+        @world.map.notifyLeaving(@)
         @x = x
         @y = y
-        @world.map.notifyEntering(this, x, y)
+        @world.map.notifyEntering(@)
         @checkConsistency()
+        true
+      else
+        false
 
     age: () => @world.age - @birth
 
@@ -336,8 +342,8 @@ require [
     # returns true iff this Entity can occupy the given location
     canOccupy: (x, y, world = @world) =>
       rect = @getHitbox(x, y)
-      return _.every(rect.allPoints(), (pt) ->
-        world.isUnoccupied(pt.x, pt.y, this)
+      return _.every(rect.allPoints(), (pt) =>
+        world.isUnoccupied(pt.x, pt.y, @)
       )
 
 
@@ -536,7 +542,7 @@ require [
       @facing = Action.Down
 
     initialize: () =>
-      @setLocation(@x, @y)
+      # @setLocation(@x, @y)
 
       # All cells you have seen previously, but cannot currently see
       @rememberedTiles = []
