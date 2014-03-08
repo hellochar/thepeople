@@ -1,6 +1,6 @@
 define [
   'underscore'
-  'action'
+  'game/action'
   'search'
 ], (_, Action, Search) ->
   class CancelledException

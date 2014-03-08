@@ -7,7 +7,7 @@ require [
   'canvasquery.framework'
   'construct'
   'rectangle'
-  'action'
+  'game/action'
   'search'
   'game/map'
   'game/drawable'

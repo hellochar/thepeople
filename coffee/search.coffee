@@ -3,7 +3,7 @@
 define [
   'underscore'
   'pathfinding'
-  'action'
+  'game/action'
 ], (_, PathFinding, Action) ->
 
   NoSolution = {}

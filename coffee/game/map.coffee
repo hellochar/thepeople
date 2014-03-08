@@ -2,7 +2,7 @@ define [
   'backbone'
   'rectangle'
   'game/drawable'
-  'action'
+  'game/action'
   'search'
 ], (Backbone, Rectangle, Drawable, Action, Search) ->
 
