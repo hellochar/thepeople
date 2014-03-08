@@ -1,8 +1,9 @@
 define [
   'underscore'
   'game/action'
+  'game/entity'
   'search'
-], (_, Action, Search) ->
+], (_, Action, Entity, Search) ->
   class CancelledException
     constructor: (@reason) ->
 
@@ -96,7 +97,7 @@ define [
   class GoHome extends WalkNear
     constructor: (@human) ->
       # find closest free bed and sleep
-      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof House)
+      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof Entity.House)
       freeBeds = _.flatten(
         _.map(houses, (b) => b.getFreeBeds(@human))
       )
