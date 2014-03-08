@@ -8,8 +8,6 @@ define [
       @visibleTilesCache = null
       @visibleEntitiesCache = null
 
-      # All cells you have seen previously, but cannot currently see
-      @rememberedTiles = []
       # All entities you have seen previously, but cannot currently see
       @rememberedEntities = []
 
@@ -23,13 +21,11 @@ define [
       $(@world).on("poststep", () =>
         @visibleTilesCache = null
         @visibleEntitiesCache = null
-        # to update the rememberedTiles
-        # 1. remove cells remembered last frame but visible now
-        # 2. add in cells visible last frame but not visible now
-        # this is still O( # of remembered cells )! Uh oh
-        @rememberedTiles = _.difference(@rememberedTiles, @getVisibleTiles())
-
-        @rememberedTiles = @rememberedTiles.concat(_.difference(lastVisibleTiles, @getVisibleTiles()))
+        # update the vision of tiles
+        # 1. visible tiles are just the visible tiles
+        # 2. remembered tiles are visible last frame but not visible now
+        tile.visionInfo = 2 for tile in @getVisibleTiles()
+        tile.visionInfo = 1 for tile in _.difference(lastVisibleTiles, @getVisibleTiles())
 
         # to update seenEntities
         # 1. remove entities remembered last frame that *should* be visible now but aren't
@@ -75,8 +71,8 @@ define [
         @visibleEntitiesCache = recomputeVisibleEntities()
       @visibleEntitiesCache
 
-    getRememberedTiles: () =>
-      @rememberedTiles
+    isLocationVisible: (x, y) =>
+      
 
     getRememberedEntities: () =>
       @rememberedEntities

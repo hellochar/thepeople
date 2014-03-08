@@ -11,7 +11,7 @@ define [
     within: (x, y) ->
       return (x >= @x && x < @right && y >= @y && y < @bottom)
 
-    intersects: (rect) ->
+    intersects: (r2) ->
       return !(r2.x > @x + @width ||
              r2.x + r2.width < @x ||
              r2.y > @height + @y ||

@@ -12,6 +12,7 @@ define [
     initialize: () ->
       @x = @get("cell").get("x")
       @y = @get("cell").get("y")
+      @visionInfo = 0 # 0 == unknown, 1 = remembered, 2 = visible
 
       depOffsets = @dependencies()
       map = @get("cell").get("map")

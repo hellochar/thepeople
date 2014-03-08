@@ -74,20 +74,31 @@ require [
       $(this).trigger("poststep")
       @age += 1
 
-    drawAll: (cq) =>
-      # ((cell.draw(cq) for cell in row) for row in @map)
-      # for entity in @entities
-      #   entity.draw(cq)
-      cell.draw(cq) for cell in @playerVision.getVisibleTiles()
-      for entity in @playerVision.getVisibleEntities()
-        entity.draw(cq)
+    drawAll: (renderer, cq) =>
+      topLeftCorner = renderer.cellPosition(0, 0)
+      bottomRightCorner = renderer.cellPosition(cq.canvas.width, cq.canvas.height)
+
+      # include the edges
+      bottomRightCorner.x += 1
+      bottomRightCorner.y += 1
+
+      for x in [Math.max(0, topLeftCorner.x)...Math.min(@map.width, bottomRightCorner.x)]
+        for y in [Math.max(0, topLeftCorner.y)...Math.min(@map.height, bottomRightCorner.y)]
+          tile = @map.getCell(x, y).tileInstance
+          if tile.visionInfo isnt 0
+            if tile.visionInfo is 1
+              cq.context.globalAlpha = 0.5
+              tile.draw(cq)
+            else if tile.visionInfo is 2
+              cq.context.globalAlpha = 1.0
+              tile.draw(cq)
+            else
+              throw "bad tile visionInfo #{tile.visionInfo}"
 
       cq.context.globalAlpha = 0.5
-      # now draw only the remembered ones
-      cell.draw(cq) for cell in @playerVision.getRememberedTiles()
       e.draw(cq) for e in @playerVision.getRememberedEntities()
-
       cq.context.globalAlpha = 1.0
+      e.draw(cq) for e in @playerVision.getVisibleEntities()
 
 
 
@@ -219,7 +230,7 @@ require [
       cq.clear("black")
       cq.save()
       cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
-      @world.drawAll(cq)
+      @world.drawAll(this, cq)
 
 
       pt = @cellPosition(mouseX, mouseY)
@@ -232,9 +243,6 @@ require [
     cellPosition: (canvasX, canvasY) =>
       x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
       y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
-
-
-
 
   framework = {
     setup: () ->
