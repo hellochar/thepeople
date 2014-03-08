@@ -111,14 +111,6 @@ define [
     isComplete: () => @human.tired <= 0
     nextAction: () => new Action.Sleep()
 
-  # returns an Entity or null if you can't build there
-  tryConstruct = (human, entityType, args) ->
-    entity = construct(entityType, args)
-    if human.world.map.hasRoomFor(entity)
-      entity
-    else
-      null
-
   class Build extends Task
     constructor: (@human, @entity) ->
       super(@human)

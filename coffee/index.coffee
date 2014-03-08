@@ -12,7 +12,8 @@ require [
   'search'
   'game/drawable'
   'game/task'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search, Drawable, Task) ->
+  'game/vision'
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search, Drawable, Task, Vision) ->
 
   'use strict'
 
@@ -162,15 +163,17 @@ require [
     constructor: (@width, @height, tileTypeFor) ->
       @age = 0
       @map = new Map(@, tileTypeFor)
+      @playerVision = new Vision(this)
 
       @entities = []
       @addEntity(new House(10, 10))
-      @human = @addEntity(new Human(10, 11))
+      @human = @addEntity(new Human(10, 11, @playerVision))
 
     addEntity: (entity) =>
       entity.world = this
       entity.birth = @age
       @entities.push(entity)
+      entity.vision.addVisibilityEmitter(entity) if entity.emitsVision()
       @map.notifyEntering(entity)
       entity.initialize()
       entity
@@ -178,6 +181,7 @@ require [
     removeEntity: (entity) =>
       idx = @entities.indexOf(entity)
       @entities.splice(idx, 1)
+      entity.vision.removeVisibilityEmitter(entity) if entity.emitsVision()
       @map.notifyLeaving(entity)
       entity
 
@@ -213,14 +217,14 @@ require [
       # ((cell.draw(cq) for cell in row) for row in @map)
       # for entity in @entities
       #   entity.draw(cq)
-      cell.draw(cq) for cell in @human.getVisibleTiles()
-      for entity in @human.getVisibleEntities()
+      cell.draw(cq) for cell in @playerVision.getVisibleTiles()
+      for entity in @playerVision.getVisibleEntities()
         entity.draw(cq)
 
       cq.context.globalAlpha = 0.5
       # now draw only the remembered ones
-      cell.draw(cq) for cell in @human.rememberedTiles
-      e.draw(cq) for e in @human.rememberedEntities
+      cell.draw(cq) for cell in @playerVision.getRememberedTiles()
+      e.draw(cq) for e in @playerVision.getRememberedEntities()
 
       cq.context.globalAlpha = 1.0
 
@@ -288,8 +292,9 @@ require [
       @maybeDryGrassSprite(namedDeps) || {x: 22, y: 6}
 
   class Entity extends Drawable
-    constructor: (@x, @y) ->
+    constructor: (@x, @y, @vision) ->
       super(@x, @y)
+      @sightRange = @constructor.sightRange
 
     # Only move Entities through this method
     move: (offset) =>
@@ -308,6 +313,8 @@ require [
         false
 
     age: () => @world.age - @birth
+
+    emitsVision: () => @vision and @sightRange?
 
     distanceTo: (cell) =>
       Math.distance(cell, this)
@@ -367,6 +374,8 @@ require [
       { x: 4, y: 13, dx: -1, dy: -1 }
     ]
 
+    @sightRange: 3
+
     getFreeBeds: (human) =>
       beds = [{ x: @x + 1, y: @y},
               { x: @x, y: @y + 1}]
@@ -393,9 +402,10 @@ require [
       y: 15
 
   class Human extends Entity
-    constructor: (@x, @y) ->
-      super(@x, @y)
-      @sightRange = 10
+    @sightRange: 10
+
+    initialize: () =>
+      # @setLocation(@x, @y)
 
       # How hungry you are.
       @hunger = 0
@@ -409,68 +419,22 @@ require [
       # Should be the last Action you took; used by the Renderer to display info about what you're doing
       @currentAction = new Action.Rest()
 
-      @visibleTilesCache = null
-      @visibleEntitiesCache = null
-
       # The class of where you're facing
       @facing = Action.Down
 
-    initialize: () =>
-      # @setLocation(@x, @y)
-
-      # All cells you have seen previously, but cannot currently see
-      @rememberedTiles = []
-      # All entities you have seen previously, but cannot currently see
-      @rememberedEntities = []
-
-      lastVisibleTiles = []
-      lastVisibleEntities = []
-      $(@world).on("prestep", () =>
-        lastVisibleTiles = @getVisibleTiles()
-        lastVisibleEntities = @getVisibleEntities()
-      )
       $(@world).on("poststep", () =>
-        # to update the rememberedTiles
-        # 1. remove cells remembered last frame but visible now
-        # 2. add in cells visible last frame but not visible now
-        # this is still O( # of remembered cells )! Uh oh
-        @rememberedTiles = _.difference(@rememberedTiles, @getVisibleTiles())
-
-        @rememberedTiles = @rememberedTiles.concat(_.difference(lastVisibleTiles, @getVisibleTiles()))
-
-        # to update seenEntities
-        # 1. remove entities remembered last frame that *should* be visible now but aren't
-        # 2. remove entities remembered last frame but visible now
-        # 3. add in entities visible last frame but not visible now
-        @rememberedEntities = _.reject(@rememberedEntities, (entity) =>
-          @distanceTo(entity) <= @sightRange and not _.contains(@getVisibleEntities(), entity)
-        )
-
-        # O( # of remembered entities ) <-- this is better but could be bad
-        @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
-        @rememberedEntities = @rememberedEntities.concat(_.difference(lastVisibleEntities, @getVisibleEntities()))
-      )
-      $(@world).on("poststep", () =>
-        if @hunger > 100 or @tired > 1000
+        if @hunger > 1000 or @tired > 1000
           @die()
       )
 
-
     getVisibleTiles: () =>
-      recomputeVisibleTiles = () => @findTilesWithin(@sightRange)
-      if not @visibleTilesCache
-        @visibleTilesCache = recomputeVisibleTiles()
-      @visibleTilesCache
+      @vision.getVisibleTiles()
 
     getVisibleEntities: () =>
-      recomputeVisibleEntities = () => @findEntitiesWithin(@sightRange)
-      if not @visibleEntitiesCache
-        @visibleEntitiesCache = recomputeVisibleEntities()
-      @visibleEntitiesCache
+      @vision.getVisibleEntities()
 
     getKnownEntities: () =>
-      @rememberedEntities.concat(@getVisibleEntities())
-
+      @vision.getKnownEntities()
 
     closestKnown: (entityType) =>
       entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
@@ -483,19 +447,19 @@ require [
     possibleTasks: () =>
       tasks = [ () => @currentTask ]
 
-      # if @hunger > 300
-      #   tasks.push( () =>
-      #     closestFood = @closestKnown(Food)
-      #     if closestFood
-      #       new Task.Eat(this, closestFood)
-      #     else
-      #       false
-      #   )
+      if @hunger > 300
+        tasks.push( () =>
+          closestFood = @closestKnown(Food)
+          if closestFood
+            new Task.Eat(this, closestFood)
+          else
+            false
+        )
 
-      # if @tired > 200
-      #   tasks.push( () =>
-      #     (new Task.GoHome(this)).andThen(new Task.Sleep(this))
-      #   )
+      if @tired > 200
+        tasks.push( () =>
+          (new Task.GoHome(this)).andThen(new Task.Sleep(this))
+        )
 
       tasks
 
@@ -529,8 +493,6 @@ require [
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         @currentTask = null
-      @visibleTilesCache = null
-      @visibleEntitiesCache = null
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
@@ -691,9 +653,18 @@ require [
     # keyboard events
     onkeydown: (key) ->
       @keys[key] = true
+
+      # returns an Entity or null if you can't build there
+      tryConstruct = (human, entityType, args) ->
+        entity = construct(entityType, args)
+        if human.world.map.hasRoomFor(entity)
+          entity
+        else
+          null
+
       if key is 'b'
         pt = @renderer.cellPosition(@mouseX, @mouseY)
-        house = tryConstruct(@world.human, House, [pt.x, pt.y])
+        house = tryConstruct(@world.human, House, [pt.x, pt.y, @world.playerVision])
         if house
           # TODO this is only a preventative measure
           # need to add the actual logic inside the Task itself to ensure that it doesn't happen
@@ -702,7 +673,7 @@ require [
         @world.human.currentTask = new Task.GoHome(@world.human)
       else if key is 'q'
         pt = @renderer.cellPosition(@mouseX, @mouseY)
-        human = tryConstruct(@world.human, Human, [pt.x, pt.y])
+        human = tryConstruct(@world.human, Human, [pt.x, pt.y, @world.playerVision])
         if human
           @world.human.currentTask = new Task.Construct(@world.human, human)
 
