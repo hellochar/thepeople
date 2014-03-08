@@ -7,13 +7,13 @@ require [
   'canvasquery.framework'
   'construct'
   'rectangle'
-  'map'
   'action'
   'search'
+  'game/map'
   'game/drawable'
   'game/task'
   'game/vision'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Map, Action, Search, Drawable, Task, Vision) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, Drawable, Task, Vision) ->
 
   'use strict'
 
