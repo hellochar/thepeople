@@ -51,7 +51,7 @@ define [
 
   class WalkNear extends Task
 
-    constructor: (@human, @pt) ->
+    constructor: (@human, @pt, @subject) ->
       super(@human)
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
       @pt = @human.world.map.closestAvailableSpot(@human, _.pick(@pt, "x", "y"))
@@ -65,6 +65,8 @@ define [
         console.log("no path!")
         @actions = []
 
+    toString: () => if @subject then "Walking to #{@subject}" else "Walking"
+
     isComplete: () => _.isEmpty(@actions)
 
     nextAction: () =>
@@ -73,7 +75,7 @@ define [
   class WalkUntilNextTo extends WalkNear
     # Assumes the entity doesn't move
     constructor: (@human, @entity) ->
-      super(@human, _.pick(@entity, "x", "y"))
+      super(@human, _.pick(@entity, "x", "y"), @entity.constructor.name)
 
     # Has the same behavior as (new WalkNear().isAlsoCompleteWhen(nearby check)).
     isComplete: () =>
@@ -92,18 +94,18 @@ define [
 
   class Eat extends TaskList
     constructor: (@human, @food) ->
-      super(@human, [new WalkNear(@human, @food), new Consume(@human, @food)])
+      super(@human, [new WalkNear(@human, @food, "food"), new Consume(@human, @food)])
 
   class GoHome extends WalkNear
     constructor: (@human) ->
       # find closest free bed and sleep
-      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof Entity.House)
+      House = @human.constructor.__super__.constructor.House
+      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof House)
       freeBeds = _.flatten(
         _.map(houses, (b) => b.getFreeBeds(@human))
       )
       closestBed = _.min(freeBeds, @human.distanceTo)
-
-      super(@human, closestBed)
+      super(@human, closestBed, "Home")
 
   class Sleep extends Task
     constructor: (@human) ->

@@ -1,3 +1,5 @@
+"use strict";
+
 require [
   'jquery',
   'underscore'
@@ -15,8 +17,6 @@ require [
   'game/task'
   'game/vision'
 ], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, Entity, Drawable, Task, Vision) ->
-
-  'use strict'
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 

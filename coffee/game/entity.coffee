@@ -1,8 +1,9 @@
 define [
+  'rectangle'
   'game/action'
   'game/task'
   'game/drawable'
-], (Action, Task, Drawable) ->
+], (Rectangle, Action, Task, Drawable) ->
 
   class Entity extends Drawable
     constructor: (@x, @y, @vision) ->
@@ -97,7 +98,6 @@ define [
     @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
     step: () =>
-
 
   class Food extends Entity
     constructor: (@x, @y) ->
@@ -243,6 +243,4 @@ define [
   Entity.Food = Food
   Entity.Human = Human
 
-
-
-  Entity
+  return Entity
