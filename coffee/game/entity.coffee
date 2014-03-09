@@ -193,7 +193,7 @@ define [
 
       @currentTask = task
       if task isnt null
-        @think("I want to #{task.toString()}!")
+        @think("#{task.toString()}!")
 
     getAction: () =>
       tasks = @possibleTasks()
@@ -226,7 +226,7 @@ define [
       action.perform(this)
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
-        @think("Finished #{@currentTask}!")
+        # @think("Finished #{@currentTask}!")
         @setCurrentTask(null)
 
     spriteLocation: () =>
@@ -249,9 +249,10 @@ define [
 
       spriteInfo
 
-    draw: (cq) =>
-      super(cq)
-      CELL_PIXEL_SIZE = cq.CELL_PIXEL_SIZE
+    draw: (renderer) =>
+      super(renderer)
+      cq = renderer.cq
+      CELL_PIXEL_SIZE = renderer.CELL_PIXEL_SIZE
       actionString = if @currentAction.toString() then @currentAction.toString() + ", " else ""
       taskString = if @currentTask then @currentTask.toString() + ", " else ""
       text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"

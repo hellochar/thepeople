@@ -47,8 +47,8 @@ define [
     getSpriteLocation: (deps) ->
       throw "not implemented"
 
-    draw: (cq) =>
-      Drawable::draw.call(this, cq)
+    draw: (renderer) =>
+      Drawable::draw.call(this, renderer)
 
 
   # {x, y, type which is a Tile constructor}

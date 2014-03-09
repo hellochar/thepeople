@@ -36,8 +36,9 @@ define [
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
 
-    draw: (cq) =>
-      CELL_PIXEL_SIZE = cq.CELL_PIXEL_SIZE
+    draw: (renderer) =>
+      cq = renderer.cq
+      CELL_PIXEL_SIZE = renderer.CELL_PIXEL_SIZE
       sprites = @spriteLocation()
       if not _.isArray(sprites)
         sprites = [sprites]

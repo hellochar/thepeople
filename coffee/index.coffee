@@ -98,34 +98,6 @@ require [
       $(this).trigger("poststep")
       @age += 1
 
-    drawAll: (renderer, cq) =>
-      topLeftCorner = renderer.cellPosition(0, 0)
-      bottomRightCorner = renderer.cellPosition(cq.canvas.width, cq.canvas.height)
-
-      # include the edges
-      bottomRightCorner.x += 1
-      bottomRightCorner.y += 1
-
-      for x in [Math.max(0, topLeftCorner.x)...Math.min(@map.width, bottomRightCorner.x)]
-        for y in [Math.max(0, topLeftCorner.y)...Math.min(@map.height, bottomRightCorner.y)]
-          tile = @map.getCell(x, y).tileInstance
-          if tile.visionInfo isnt 0
-            if tile.visionInfo is 1
-              cq.context.globalAlpha = 0.5
-              tile.draw(cq)
-            else if tile.visionInfo is 2
-              cq.context.globalAlpha = 1.0
-              tile.draw(cq)
-            else
-              throw "bad tile visionInfo #{tile.visionInfo}"
-
-      cq.context.globalAlpha = 0.5
-      e.draw(cq) for e in @playerVision.getRememberedEntities()
-      cq.context.globalAlpha = 1.0
-      e.draw(cq) for e in @playerVision.getVisibleEntities()
-
-
-
   class Grass extends Map.Tile
     dependencies: () -> []
     getSpriteLocation: (deps) -> { x: 21, y: 4 }
@@ -230,16 +202,42 @@ require [
 
 
   class Renderer
-    CELL_PIXEL_SIZE = 32
-    constructor: (@world) ->
+    constructor: (@world, @cq, @CELL_PIXEL_SIZE = 32) ->
       @camera = {
         x: 0
         y: 0
       }
 
-    render: (cq, delta, keys, mouseX, mouseY) =>
+    drawWorld: () =>
+      topLeftCorner = @cellPosition(0, 0)
+      bottomRightCorner = @cellPosition(cq.canvas.width, cq.canvas.height)
+
+      # include the edges
+      bottomRightCorner.x += 1
+      bottomRightCorner.y += 1
+
+      for x in [Math.max(0, topLeftCorner.x)...Math.min(@world.map.width, bottomRightCorner.x)]
+        for y in [Math.max(0, topLeftCorner.y)...Math.min(@world.map.height, bottomRightCorner.y)]
+          tile = @world.map.getCell(x, y).tileInstance
+          if tile.visionInfo isnt 0
+            if tile.visionInfo is 1
+              cq.context.globalAlpha = 0.5
+              tile.draw(this)
+            else if tile.visionInfo is 2
+              cq.context.globalAlpha = 1.0
+              tile.draw(this)
+            else
+              throw "bad tile visionInfo #{tile.visionInfo}"
+
+      cq.context.globalAlpha = 0.5
+      e.draw(this) for e in @world.playerVision.getRememberedEntities()
+      cq.context.globalAlpha = 1.0
+      e.draw(this) for e in @world.playerVision.getVisibleEntities()
+
+
+    render: (delta, keys, mouseX, mouseY) =>
+      cq = @cq
       # oh god this is so bad
-      cq.CELL_PIXEL_SIZE = CELL_PIXEL_SIZE
       $(@world).trigger("prerender")
 
       mapping = {
@@ -253,29 +251,28 @@ require [
         fn() if keys[key]
       cq.clear("black")
       cq.save()
-      cq.translate(@camera.x * CELL_PIXEL_SIZE, @camera.y * CELL_PIXEL_SIZE)
-      @world.drawAll(this, cq)
+      cq.translate(@camera.x * @CELL_PIXEL_SIZE, @camera.y * @CELL_PIXEL_SIZE)
+      @drawWorld()
 
 
       pt = @cellPosition(mouseX, mouseY)
       if @world.map.isUnoccupied(pt.x, pt.y) then cq.fillStyle("green") else cq.fillStyle("red")
-      cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      cq.globalAlpha(0.5).fillRect(pt.x * @CELL_PIXEL_SIZE, pt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
       for unit in @world.selection.units
-        centerX = (unit.x + .5) * CELL_PIXEL_SIZE
-        centerY = (unit.y + .5) * CELL_PIXEL_SIZE
-        cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
+        centerX = (unit.x + .5) * @CELL_PIXEL_SIZE
+        centerY = (unit.y + .5) * @CELL_PIXEL_SIZE
+        cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, @CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
       cq.restore()
 
       $(@world).trigger("postrender")
 
     cellPosition: (canvasX, canvasY) =>
-      x: canvasX / CELL_PIXEL_SIZE - @camera.x | 0
-      y: canvasY / CELL_PIXEL_SIZE - @camera.y | 0
+      x: canvasX / @CELL_PIXEL_SIZE - @camera.x | 0
+      y: canvasY / @CELL_PIXEL_SIZE - @camera.y | 0
 
   framework = {
     setup: () ->
       @world = setupWorld()
-      @renderer = new Renderer(@world)
 
       @keys = {}
       @mouseX = 0
@@ -285,6 +282,8 @@ require [
       @cq.canvas.width = (@cq.canvas.width * 0.7) | 0
       @cq.canvas.oncontextmenu = () -> false
       @cq.appendTo("#viewport")
+
+      @renderer = new Renderer(@world, @cq)
 
       setupDebug(this)
 
@@ -296,7 +295,7 @@ require [
     stepRate: 20
 
     onrender: (delta, time) ->
-      @renderer.render(@cq, delta, @keys, @mouseX, @mouseY)
+      @renderer.render( delta, @keys, @mouseX, @mouseY)
 
     # window resize
     onresize: (width, height) ->
