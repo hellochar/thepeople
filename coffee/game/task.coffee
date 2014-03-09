@@ -117,6 +117,7 @@ define [
   class Build extends Task
     constructor: (@human, @entity) ->
       super(@human)
+      throw "Bad entity" if not @entity
       # Optimally we would have a "tryBuild" method that returns
       # the Build task if successful, or otherwise returns null
       #
@@ -128,11 +129,7 @@ define [
       # and then the protocol is to have Task constructors throw BadTask
       #
       # instead we'll just ad-hoc some way to not actually "build" the building for now
-      if @entity
-        @turnsLeft = 10
-      else
-        # make this task already isComplete(), so nextAction() should never be called
-        @turnsLeft = 0
+      @turnsLeft = 10
 
     class BuildAction extends Action
       constructor: (@buildTask) ->

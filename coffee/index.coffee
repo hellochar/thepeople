@@ -23,15 +23,37 @@ require [
   Math.distance = (a, b) ->
     Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
 
+
+  overlay = (string) ->
+    $("body").empty().text(string)
+
+
+  class Selection
+    constructor: (@units) ->
+      @units ||= []
+
+    add: (unit) ->
+      throw "bad" unless unit instanceof Entity.Human
+      @units.push(unit) unless @has(unit)
+
+    remove: (unit) ->
+      @units = _.without(@units, unit)
+
+    clear: () => @units = []
+
+    has: (unit) -> unit in @units
+
   class World
     constructor: (@width, @height, tileTypeFor) ->
       @age = 0
       @map = new Map(@, tileTypeFor)
       @playerVision = new Vision(this)
+      @selection = new Selection()
 
       @entities = []
       @addEntity(new Entity.House(10, 10))
-      @human = @addEntity(new Entity.Human(10, 11, @playerVision))
+      starter = @addEntity(new Entity.Human(10, 11, @playerVision))
+      @selection.add(starter)
 
     addEntity: (entity) =>
       entity.world = this
@@ -234,8 +256,12 @@ require [
 
 
       pt = @cellPosition(mouseX, mouseY)
-      if @world.human.canOccupy(pt.x, pt.y) then cq.fillStyle("green") else cq.fillStyle("red")
+      if @world.map.isUnoccupied(pt.x, pt.y) then cq.fillStyle("green") else cq.fillStyle("red")
       cq.globalAlpha(0.5).fillRect(pt.x * CELL_PIXEL_SIZE, pt.y * CELL_PIXEL_SIZE, CELL_PIXEL_SIZE, CELL_PIXEL_SIZE)
+      for unit in @world.selection.units
+        centerX = (unit.x + .5) * CELL_PIXEL_SIZE
+        centerY = (unit.y + .5) * CELL_PIXEL_SIZE
+        cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
       cq.restore()
 
       $(@world).trigger("postrender")
@@ -262,8 +288,8 @@ require [
 
     onstep: (delta, time) ->
       @world.stepAll()
-      if @world.human.isDead()
-        console.log("You died!")
+      if not _.any(@world.entities, (ent) => ent.vision is @world.playerVision)
+        overlay("You died!")
 
     stepRate: 20
 
@@ -280,7 +306,17 @@ require [
 
     onmousedown: (x, y, button) ->
       pt = @renderer.cellPosition(x, y)
-      @world.human.currentTask = new Task.WalkNear(@world.human, pt)
+      if button == 2
+        _.each(@world.selection.units, (unit) ->
+          unit.currentTask = new Task.WalkNear(unit, pt)
+        )
+      else if button == 0
+        entity = @world.entityAt(pt.x, pt.y)
+        if entity?.vision is @world.playerVision
+          if @world.selection.has(entity)
+            @world.selection.remove(entity)
+          else
+            @world.selection.add(entity)
 
     onmousemove: (x, y) ->
       @mouseX = x
@@ -293,28 +329,21 @@ require [
     onkeydown: (key) ->
       @keys[key] = true
 
-      # returns an Entity or null if you can't build there
-      tryConstruct = (human, entityType, args) ->
-        entity = construct(entityType, args)
-        if human.world.map.hasRoomFor(entity)
-          entity
-        else
-          null
+      makeHumanBuild = (human, type, pt) ->
+        human.currentTask = new Task.Construct(human, construct(type, [pt.x, pt.y, human.vision]))
 
-      if key is 'b'
-        pt = @renderer.cellPosition(@mouseX, @mouseY)
-        house = tryConstruct(@world.human, Entity.House, [pt.x, pt.y, @world.playerVision])
-        if house
-          # TODO this is only a preventative measure
-          # need to add the actual logic inside the Task itself to ensure that it doesn't happen
-          @world.human.currentTask = new Task.Construct(@world.human, house)
-      else if key is 'h'
-        @world.human.currentTask = new Task.GoHome(@world.human)
-      else if key is 'q'
-        pt = @renderer.cellPosition(@mouseX, @mouseY)
-        human = tryConstruct(@world.human, Entity.Human, [pt.x, pt.y, @world.playerVision])
-        if human
-          @world.human.currentTask = new Task.Construct(@world.human, human)
+      mousePt = @renderer.cellPosition(@mouseX, @mouseY)
+
+      freeHuman = _.find(@world.selection.units, (unit) -> unit.currentTask == null)
+      ((human) =>
+        if not human
+          {}
+        else
+          b: () => makeHumanBuild(human, Entity.House, mousePt)
+          q: () => makeHumanBuild(human, Entity.Human, mousePt)
+          h: () => human.currentTask = new Task.GoHome(human)
+          z: () => human.die()
+      )(freeHuman)[key]?()
 
     onkeyup: (key) ->
       delete @keys[key]
