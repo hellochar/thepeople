@@ -27,10 +27,12 @@ require [
   overlay = (string) ->
     $("body").empty().text(string)
 
-
   class Selection
-    constructor: (@units) ->
+    constructor: (@units, @world) ->
       @units ||= []
+      $(@world).on("poststep", () =>
+        remove(unit) for unit in @units when unit.isDead()
+      )
 
     add: (unit) ->
       throw "bad" unless unit instanceof Entity.Human
@@ -308,7 +310,7 @@ require [
       pt = @renderer.cellPosition(x, y)
       if button == 2
         _.each(@world.selection.units, (unit) ->
-          unit.currentTask = new Task.WalkNear(unit, pt)
+          unit.setCurrentTask(new Task.WalkNear(unit, pt))
         )
       else if button == 0
         entity = @world.entityAt(pt.x, pt.y)
@@ -330,7 +332,7 @@ require [
       @keys[key] = true
 
       makeHumanBuild = (human, type, pt) ->
-        human.currentTask = new Task.Construct(human, construct(type, [pt.x, pt.y, human.vision]))
+        human.setCurrentTask(new Task.Construct(human, construct(type, [pt.x, pt.y, human.vision])))
 
       mousePt = @renderer.cellPosition(@mouseX, @mouseY)
 
@@ -341,7 +343,7 @@ require [
         else
           b: () => makeHumanBuild(human, Entity.House, mousePt)
           q: () => makeHumanBuild(human, Entity.Human, mousePt)
-          h: () => human.currentTask = new Task.GoHome(human)
+          h: () => human.setCurrentTask( new Task.GoHome(human) )
           z: () => human.die()
       )(freeHuman)[key]?()
 

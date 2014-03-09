@@ -9,6 +9,8 @@ define [
     constructor: (@x, @y, @vision) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
+      # array of {age: age(), thought: string}
+      @thoughts = []
 
     # Only move Entities through this method
     move: (offset) =>
@@ -25,6 +27,13 @@ define [
         true
       else
         false
+
+    think: (str) =>
+      @thoughts.unshift({age: @age(), thought: str})
+
+    # Get all thoughts in the past 100 steps
+    getRecentThoughts: () =>
+      _.filter(@thoughts, (thought) => @age() - thought.age < 100)
 
     age: () => @world.age - @birth
 
@@ -178,6 +187,14 @@ define [
 
       tasks
 
+
+    setCurrentTask: (task) =>
+      return if task is @currentTask
+
+      @currentTask = task
+      if task isnt null
+        @think("I want to #{task.toString()}!")
+
     getAction: () =>
       tasks = @possibleTasks()
 
@@ -188,18 +205,20 @@ define [
           doableTask = task
           break
       if doableTask
-        @currentTask = doableTask
+        @setCurrentTask(doableTask)
         try
           return @currentTask.nextAction()
         catch err
           if err instanceof Task.CancelledException
-            alert("Error: #{err.reason}")
-            @currentTask = null
+            @think("I can't #{@currentTask.toString()} because #{err.reason}")
+            @setCurrentTask(null)
             return new Action.Rest()
           else
             throw err
       else
-        @currentTask = null
+        # when does this happen?
+        debugger if @currentTask isnt null
+        @setCurrentTask(null)
         return new Action.Rest()
 
     step: () =>
@@ -207,7 +226,8 @@ define [
       action.perform(this)
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
-        @currentTask = null
+        @think("Finished #{@currentTask}!")
+        @setCurrentTask(null)
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
@@ -236,6 +256,28 @@ define [
       taskString = if @currentTask then @currentTask.toString() + ", " else ""
       text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
       cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
+
+      drawTextBox = (lines, left, bottom) ->
+        return if _.isEmpty(lines)
+        FONT_SIZE = 12
+        LINE_MARGIN = 5
+        width = 140
+
+        #center horizontally
+        left -= width / 2
+
+        height = lines.length * (FONT_SIZE + LINE_MARGIN)
+        cq.fillStyle("rgba(255, 255, 255, .5)").strokeStyle("black").roundRect(left, bottom - height, width, height, 5).fill().stroke()
+        cq.font("normal #{FONT_SIZE}pt arial").fillStyle("black")
+        cq.fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, width - LINE_MARGIN / 2) for line, idx in lines
+
+      drawTextBox(_.pluck(@getRecentThoughts()[0...1], "thought"), (@x+0.5)*CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE)
+
+      # for thought, idx in @getRecentThoughts()
+      #   xmin = @x*CELL_PIXEL_SIZE
+      #   width = 140
+      #   ymin = (@y - 1)*CELL_PIXEL_SIZE - (idx * 14)
+      #   height = 14
 
 
 
