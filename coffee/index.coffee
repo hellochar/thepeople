@@ -234,6 +234,22 @@ require [
       cq.context.globalAlpha = 1.0
       e.draw(this) for e in @world.playerVision.getVisibleEntities()
 
+    drawTextBox: (lines, left, bottom) =>
+      return if _.isEmpty(lines)
+      FONT_SIZE = 12
+      LINE_MARGIN = 5
+      lineWidth = Math.min(140, _.max(_.pluck(_.map(lines, (line) => @cq.measureText(line)), "width")))
+
+      width = lineWidth + LINE_MARGIN * 2
+
+      #center horizontally
+      left -= width / 2
+
+      height = lines.length * (FONT_SIZE + LINE_MARGIN)
+      @cq.fillStyle("rgba(255, 255, 255, .5)").strokeStyle("black").roundRect(left, bottom - height, width, height, 5).fill().stroke()
+      @cq.font("normal #{FONT_SIZE}pt arial").fillStyle("black")
+      @cq.fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, lineWidth) for line, idx in lines
+
 
     render: (delta, keys, mouseX, mouseY) =>
       cq = @cq
@@ -255,20 +271,26 @@ require [
       @drawWorld()
 
 
-      pt = @cellPosition(mouseX, mouseY)
-      if @world.map.isUnoccupied(pt.x, pt.y) then cq.fillStyle("green") else cq.fillStyle("red")
-      cq.globalAlpha(0.5).fillRect(pt.x * @CELL_PIXEL_SIZE, pt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
+      cellPt = @cellPosition(mouseX, mouseY, true)
+      if @world.map.isUnoccupied(cellPt.x, cellPt.y) then cq.fillStyle("green") else cq.fillStyle("red")
+      cq.save()
+      cq.globalAlpha(0.5).fillRect(cellPt.x * @CELL_PIXEL_SIZE, cellPt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
       for unit in @world.selection.units
         centerX = (unit.x + .5) * @CELL_PIXEL_SIZE
         centerY = (unit.y + .5) * @CELL_PIXEL_SIZE
         cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, @CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
       cq.restore()
+      mousePt = @cellPosition(mouseX, mouseY, false)
+      @drawTextBox(["right-click: walk here"], mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
+      cq.restore()
 
       $(@world).trigger("postrender")
 
-    cellPosition: (canvasX, canvasY) =>
-      x: canvasX / @CELL_PIXEL_SIZE - @camera.x | 0
-      y: canvasY / @CELL_PIXEL_SIZE - @camera.y | 0
+    cellPosition: (canvasX, canvasY, truncate = true) =>
+      x = canvasX / @CELL_PIXEL_SIZE - @camera.x
+      y = canvasY / @CELL_PIXEL_SIZE - @camera.y
+      x: if truncate then x | 0 else x
+      y: if truncate then y | 0 else y
 
   framework = {
     setup: () ->

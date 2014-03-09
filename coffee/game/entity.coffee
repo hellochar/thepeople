@@ -189,11 +189,22 @@ define [
 
 
     setCurrentTask: (task) =>
+      throw "Bad task #{task}" unless task instanceof Task # also catches nulls
+
       return if task is @currentTask
+      return if task.isComplete()
 
       @currentTask = task
-      if task isnt null
-        @think("#{task.toString()}!")
+      @think("#{task.toString()}!")
+
+    # call this to notify the entity that its current task got cancelled
+    currentTaskCancelled: (err) =>
+      @think("I can't #{@currentTask.toString()} because #{err.reason}")
+      @currentTask = null
+
+    #call this to notify the entity that its current task just finished
+    currentTaskCompleted: () =>
+      @currentTask = null
 
     getAction: () =>
       tasks = @possibleTasks()
@@ -210,15 +221,14 @@ define [
           return @currentTask.nextAction()
         catch err
           if err instanceof Task.CancelledException
-            @think("I can't #{@currentTask.toString()} because #{err.reason}")
-            @setCurrentTask(null)
+            @currentTaskCancelled(err)
             return new Action.Rest()
           else
             throw err
       else
-        # when does this happen?
-        debugger if @currentTask isnt null
-        @setCurrentTask(null)
+        # this happens when your currentTask was just assigned but it is already complete
+        # TODO get rid of this; it should never happen
+        @currentTaskCompleted()
         return new Action.Rest()
 
     step: () =>
@@ -227,7 +237,7 @@ define [
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
-        @setCurrentTask(null)
+        @currentTaskCompleted()
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
@@ -258,21 +268,7 @@ define [
       text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
       cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
-      drawTextBox = (lines, left, bottom) ->
-        return if _.isEmpty(lines)
-        FONT_SIZE = 12
-        LINE_MARGIN = 5
-        width = 140
-
-        #center horizontally
-        left -= width / 2
-
-        height = lines.length * (FONT_SIZE + LINE_MARGIN)
-        cq.fillStyle("rgba(255, 255, 255, .5)").strokeStyle("black").roundRect(left, bottom - height, width, height, 5).fill().stroke()
-        cq.font("normal #{FONT_SIZE}pt arial").fillStyle("black")
-        cq.fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, width - LINE_MARGIN / 2) for line, idx in lines
-
-      drawTextBox(_.pluck(@getRecentThoughts()[0...1], "thought"), (@x+0.5)*CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE)
+      renderer.drawTextBox(_.pluck(@getRecentThoughts()[0...1], "thought"), (@x+0.5)*CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE)
 
       # for thought, idx in @getRecentThoughts()
       #   xmin = @x*CELL_PIXEL_SIZE
