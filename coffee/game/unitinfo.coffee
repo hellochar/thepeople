@@ -44,8 +44,8 @@ define [
         <div class="individual unitinfo">
           <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
           <div>
-            <p> Hunger: <%= hunger | 0 %> </p>
-            <p> Tired: <%= tired | 0 %> </p>
+            <p style="background-color: <%= hungerColor %>"> Hunger: <%= hunger | 0 %> </p>
+            <p style="background-color: <%= tiredColor %>"> Tired: <%= tired | 0 %> </p>
 
             <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
@@ -61,7 +61,17 @@ define [
           ageString: millisecondsToStr(unit.age() * (1000 / 20))
           name: unit.constructor.name
           hunger: unit.hunger
+          hungerColor: switch
+            when unit.hunger < 300 then "green"
+            when unit.hunger < 600 then "yellow"
+            when unit.hunger < 800 then "orange"
+            else "red"
           tired: unit.tired
+          tiredColor: switch
+            when unit.tired < 300 then "green"
+            when unit.tired < 600 then "yellow"
+            when unit.tired < 800 then "orange"
+            else "red"
           currentTaskString: unit.currentTask?.toString() || "Nothing"
           thoughts: unit.getRecentThoughts()
         }

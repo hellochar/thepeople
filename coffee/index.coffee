@@ -26,7 +26,23 @@ require [
 
 
   overlay = (string) ->
-    $("body").empty().text(string)
+    getOverlay = () ->
+      if $("#overlay").length is 0
+        $("<div>").css(
+          position: "absolute"
+          width: "100%"
+          height: "100%"
+          left: "0px"
+          top: "0px"
+          "z-index": 1
+          "background-color": "rgba(0, 0, 0, .5)"
+          "font-size": "50pt"
+          color: "white"
+          "text-align": "center"
+        ).attr("id", "overlay").appendTo("body")
+      else $("#overlay")
+
+    getOverlay().text(string)
 
   class Selection
     constructor: (@units, @world) ->
@@ -340,10 +356,9 @@ require [
       else if button == 0
         entity = @world.entityAt(pt.x, pt.y)
         if entity?.vision is @world.playerVision
-          if @world.selection.has(entity)
-            @world.selection.remove(entity)
-          else
-            @world.selection.add(entity)
+          if not @keys["shift"]
+            @world.selection.clear()
+          @world.selection.add(entity)
 
     onmousemove: (x, y) ->
       @mouseX = x

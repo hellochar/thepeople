@@ -133,10 +133,10 @@ define [
       # @setLocation(@x, @y)
 
       # How hungry you are.
-      @hunger = 0
+      @hunger = 900
 
       # How tired you are. Will affect your action taking capabilities if you're too tired
-      @tired = 0
+      @tired = 800
 
       # Your current task
       @currentTask = null
@@ -183,7 +183,7 @@ define [
             false
         )
 
-      if @tired > 200
+      if @tired > 300
         tasks.push( () =>
           @think("I'm tired!")
           (new Task.GoHome(this)).andThen(new Task.Sleep(this))
@@ -267,10 +267,10 @@ define [
       super(renderer)
       cq = renderer.cq
       CELL_PIXEL_SIZE = renderer.CELL_PIXEL_SIZE
-      actionString = if @currentAction.toString() then @currentAction.toString() + ", " else ""
-      taskString = if @currentTask then @currentTask.toString() + ", " else ""
-      text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
-      cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
+      # actionString = if @currentAction.toString() then @currentAction.toString() + ", " else ""
+      # taskString = if @currentTask then @currentTask.toString() + ", " else ""
+      # text = "#{taskString}#{@hunger | 0} hunger, #{@tired | 0} tired"
+      # cq.fillStyle("red").font('normal 20pt arial').fillText(text, @x*CELL_PIXEL_SIZE, @y*CELL_PIXEL_SIZE)
 
       renderer.drawTextBox(_.pluck(@getRecentThoughts()[0...1], "thought"), (@x+0.5)*CELL_PIXEL_SIZE, @y * CELL_PIXEL_SIZE)
 
