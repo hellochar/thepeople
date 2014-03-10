@@ -3,6 +3,28 @@ define [
   'underscore'
 ], ($, _) ->
 
+  millisecondsToStr = (milliseconds) ->
+    
+    # TIP: to find current time in milliseconds, use:
+    # var  current_time_milliseconds = new Date().getTime();
+    
+    # This function does not deal with leap years, however,
+    # it should not be an issue because the output is aproximated.
+    numberEnding = (number) -> #todo: replace with a wiser code
+      (if (number > 1) then "s" else "")
+    temp = milliseconds / 1000
+    years = Math.floor(temp / 31536000)
+    return years + " year" + numberEnding(years)  if years
+    days = Math.floor((temp %= 31536000) / 86400)
+    return days + " day" + numberEnding(days)  if days
+    hours = Math.floor((temp %= 86400) / 3600)
+    return hours + " hour" + numberEnding(hours)  if hours
+    minutes = Math.floor((temp %= 3600) / 60)
+    return minutes + " minute" + numberEnding(minutes)  if minutes
+    seconds = temp % 60
+    return seconds + " second" + numberEnding(seconds)  if seconds
+    "less then a second" #'just now' //or other string you like;
+
   class SingleUnitInfo
     constructor: (@unit) ->
 
@@ -20,12 +42,12 @@ define [
       _.template(
         """
         <div class="individual unitinfo">
-          <h2> <%= constructor.name %> <span style="font-size: 0.5em"> <%= age() %> </span> </h2>
+          <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
           <div>
             <p> Hunger: <%= hunger | 0 %> </p>
             <p> Tired: <%= tired | 0 %> </p>
 
-            <h3> Current Action: <span class="text-muted"> <%= (currentTask && currentTask.toString()) || "Nothing" %> </span> </h3>
+            <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
             <h3> Thoughts </h3>
             <% _.each(thoughts, function(thought) { %>
@@ -34,7 +56,15 @@ define [
           </div>
         </div>
         """
-      , unit
+      , {
+          # 20 frames per second -> 1000 / 20 milliseconds per frame
+          ageString: millisecondsToStr(unit.age() * (1000 / 20))
+          name: unit.constructor.name
+          hunger: unit.hunger
+          tired: unit.tired
+          currentTaskString: unit.currentTask?.toString() || "Nothing"
+          thoughts: unit.getRecentThoughts()
+        }
       )
 
 

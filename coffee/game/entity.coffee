@@ -35,6 +35,7 @@ define [
     getRecentThoughts: () =>
       _.filter(@thoughts, (thought) => @age() - thought.age < 100)
 
+    # Returns the number of frames this entity has been alive for
     age: () => @world.age - @birth
 
     emitsVision: () => @vision and @sightRange?
@@ -175,13 +176,16 @@ define [
         tasks.push( () =>
           closestFood = @closestKnown(Food)
           if closestFood
+            @think("I'm hungry. Time to eat!")
             new Task.Eat(this, closestFood)
           else
+            @think("I'm hungry but there's no food!")
             false
         )
 
       if @tired > 200
         tasks.push( () =>
+          @think("I'm tired!")
           (new Task.GoHome(this)).andThen(new Task.Sleep(this))
         )
 
@@ -195,7 +199,7 @@ define [
       return if task.isComplete()
 
       @currentTask = task
-      @think("#{task.toString()}!")
+      @think(task.thought()) if task.thought
 
     # call this to notify the entity that its current task got cancelled
     currentTaskCancelled: (err) =>

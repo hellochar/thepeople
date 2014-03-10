@@ -48,6 +48,7 @@ require [
 
   class World
     constructor: (@width, @height, tileTypeFor) ->
+      # Age is the number of frames this World has been stepped for
       @age = 0
       @map = new Map(@, tileTypeFor)
       @playerVision = new Vision(this)

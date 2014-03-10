@@ -149,6 +149,8 @@ define [
         @cancel("#{@human.constructor.name} cannot reach building!")
       new BuildAction(this)
 
+    thought: () => "Building a #{@entity.constructor.name}!"
+
   # Walk to an unplaced Entity and Build it
   class Construct extends TaskList
     constructor: (@human, @entity) ->
