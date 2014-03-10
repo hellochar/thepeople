@@ -18,16 +18,23 @@ define [
     rightclickTask: (pt) =>
       entity = @world.entityAt(pt.x, pt.y)
       CONTEXT_TASKS = {
-        Food: Task.Eat
-        House: Task.GoHome
+        Food: {
+          task: Task.Eat
+          tooltip: "Eat."
+        }
+        House:
+          task: Task.GoHome
+          tooltip: "Go home."
       }
-      defaultTask = Task.WalkNear
+      defaultTask =
+        task: Task.WalkNear
+        tooltip: "Walk here."
       context = entity?.constructor.name
-      taskConstructor = CONTEXT_TASKS[context] || defaultTask
+      CONTEXT_TASKS[context] || defaultTask
 
 
     onrightclick: (pt) ->
-      taskType = @rightclickTask(pt)
+      {task: taskType} = @rightclickTask(pt)
       entity = @world.entityAt(pt.x, pt.y)
       _.each(@world.selection.units, (unit) ->
         unit.setCurrentTask(new taskType(unit, entity || pt))
@@ -41,7 +48,12 @@ define [
         @world.selection.add(entity)
 
     tooltip: (pt) =>
-      ["Right-click: #{@rightclickTask(pt).name}"]
+      clicks = []
+      entity = @world.entityAt(pt.x, pt.y)
+      if entity?.vision is @world.playerVision
+        clicks.push("Left-click: select")
+      clicks.push("Right-click: #{@rightclickTask(pt).tooltip}")
+      clicks
 
   ClickBehavior.Default = DefaultClickBehavior
 
