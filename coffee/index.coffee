@@ -16,7 +16,8 @@ require [
   'game/drawable'
   'game/task'
   'game/vision'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, Entity, Drawable, Task, Vision) ->
+  'game/unitinfo'
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, Entity, Drawable, Task, Vision, UnitInfoHandler) ->
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
@@ -306,6 +307,8 @@ require [
       @cq.appendTo("#viewport")
 
       @renderer = new Renderer(@world, @cq)
+
+      @unitinfo = new UnitInfoHandler(@world, $("#unitinfo"))
 
       setupDebug(this)
 
