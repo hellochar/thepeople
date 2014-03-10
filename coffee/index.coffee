@@ -12,12 +12,13 @@ require [
   'game/action'
   'search'
   'game/map'
+  'game/click_behavior'
   'game/entity'
   'game/drawable'
   'game/task'
   'game/vision'
   'game/unitinfo'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, Entity, Drawable, Task, Vision, UnitInfoHandler) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, Drawable, Task, Vision, UnitInfoHandler) ->
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
@@ -25,6 +26,8 @@ require [
     Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
 
 
+  # TODO move the Overlay from twoguns over
+  # or better yet use a modal?
   overlay = (string) ->
     getOverlay = () ->
       if $("#overlay").length is 0
@@ -220,11 +223,14 @@ require [
 
 
   class Renderer
-    constructor: (@world, @cq, @CELL_PIXEL_SIZE = 32) ->
+    constructor: (@world, @cq, @framework, @CELL_PIXEL_SIZE = 32) ->
       @camera = {
         x: 0
         y: 0
       }
+      @cq.context.imageSmoothingEnabled = false
+      @cq.context.webkitImageSmoothingEnabled = false
+      @cq.context.mozImageSmoothingEnabled = false
 
     drawWorld: () =>
       topLeftCorner = @cellPosition(0, 0)
@@ -299,7 +305,7 @@ require [
         cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, @CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
       cq.restore()
       mousePt = @cellPosition(mouseX, mouseY, false)
-      @drawTextBox(["right-click: walk here"], mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
+      @drawTextBox(@framework.clickbehavior.tooltip(cellPt), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
       cq.restore()
 
       $(@world).trigger("postrender")
@@ -323,9 +329,11 @@ require [
       @cq.canvas.oncontextmenu = () -> false
       @cq.appendTo("#viewport")
 
-      @renderer = new Renderer(@world, @cq)
+      @renderer = new Renderer(@world, @cq, this)
 
       @unitinfo = new UnitInfoHandler(@world, $("#unitinfo"))
+
+      @clickbehavior = new ClickBehavior.Default(@world, @keys)
 
       setupDebug(this)
 
@@ -337,7 +345,7 @@ require [
     stepRate: 20
 
     onrender: (delta, time) ->
-      @renderer.render( delta, @keys, @mouseX, @mouseY)
+      @renderer.render( delta, @keys, @mouseX, @mouseY )
 
     # window resize
     onresize: (width, height) ->
@@ -350,15 +358,9 @@ require [
     onmousedown: (x, y, button) ->
       pt = @renderer.cellPosition(x, y)
       if button == 2
-        _.each(@world.selection.units, (unit) ->
-          unit.setCurrentTask(new Task.WalkNear(unit, pt))
-        )
+        @clickbehavior.onrightclick(pt)
       else if button == 0
-        entity = @world.entityAt(pt.x, pt.y)
-        if entity?.vision is @world.playerVision
-          if not @keys["shift"]
-            @world.selection.clear()
-          @world.selection.add(entity)
+        @clickbehavior.onleftclick(pt)
 
     onmousemove: (x, y) ->
       @mouseX = x

@@ -39,6 +39,10 @@ define [
 
 
     renderUnit: (unit) =>
+      # TODO move this template into its own file, _.template() it and require it
+      # TODO only update the part of the DOM you need to change
+      # TODO better hunger and tired sliders
+      # TODO general health/happiness for units
       _.template(
         """
         <div class="individual unitinfo">

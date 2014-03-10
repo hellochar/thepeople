@@ -1,9 +1,8 @@
 define [
   'underscore'
   'game/action'
-  'game/entity'
   'search'
-], (_, Action, Entity, Search) ->
+], (_, Action, Search) ->
   class CancelledException
     constructor: (@reason) ->
 
