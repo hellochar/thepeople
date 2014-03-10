@@ -253,10 +253,11 @@ require [
             else
               throw "bad tile visionInfo #{tile.visionInfo}"
 
+      entitySorter = (e) -> e.y * e.world.width + e.x
       cq.context.globalAlpha = 0.5
-      e.draw(this) for e in @world.playerVision.getRememberedEntities()
+      e.draw(this) for e in _.sortBy(@world.playerVision.getRememberedEntities(), entitySorter)
       cq.context.globalAlpha = 1.0
-      e.draw(this) for e in @world.playerVision.getVisibleEntities()
+      e.draw(this) for e in _.sortBy(@world.playerVision.getVisibleEntities(), entitySorter)
 
     drawTextBox: (lines, left, bottom) =>
       return if _.isEmpty(lines)
