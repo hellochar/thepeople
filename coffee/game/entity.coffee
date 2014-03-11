@@ -138,7 +138,7 @@ define [
 
 
   class Human extends Entity
-    @sightRange: 10
+    @sightRange: 8
 
     initialize: () =>
       # @setLocation(@x, @y)

@@ -13,11 +13,12 @@ require [
   'game/click_behavior'
   'game/entity'
   'game/drawable'
+  'game/selection'
   'game/task'
   'game/tile'
   'game/vision'
   'game/unitinfo'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, Drawable, Task, Tile, Vision, UnitInfoHandler) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, Drawable, Selection, Task, Tile, Vision, UnitInfoHandler) ->
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
@@ -45,26 +46,6 @@ require [
       else $("#overlay")
 
     getOverlay().text(string)
-
-  class Selection
-    constructor: (@units, @vision, @world) ->
-      @units ||= []
-      $(@world).on("poststep", () =>
-        @remove(unit) for unit in @units when unit.isDead()
-      )
-
-    canSelect: (unit) => unit.vision is @vision
-
-    add: (unit) ->
-      throw "bad" unless @canSelect(unit)
-      @units.push(unit) unless @has(unit)
-
-    remove: (unit) ->
-      @units = _.without(@units, unit)
-
-    clear: () => @units = []
-
-    has: (unit) -> unit in @units
 
   class World
     constructor: (@width, @height) ->
@@ -349,9 +330,11 @@ require [
       setupDebug(this)
 
     onstep: (delta, time) ->
-      @world.stepAll()
-      if not _.any(@world.entities, (ent) => ent.vision is @world.playerVision)
-        overlay("You died!")
+      surviving = () => _.any(@world.entities, (ent) => ent.vision is @world.playerVision)
+      if surviving()
+        @world.stepAll()
+        if not surviving()
+          overlay("You died! You survived for #{@world.age} turns. Your performance is: ")
 
     stepRate: 20
 

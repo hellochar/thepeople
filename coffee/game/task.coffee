@@ -117,7 +117,7 @@ define [
       # and then the protocol is to have Task constructors throw BadTask
       #
       # instead we'll just ad-hoc some way to not actually "build" the building for now
-      @turnsLeft = 10
+      @turnsLeft = @entity.constructor.buildCost || 25
 
     class BuildAction extends Action
       constructor: (@buildTask) ->

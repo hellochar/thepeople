@@ -29,18 +29,7 @@ define [
   class SingleUnitInfo
     constructor: (@unit) ->
 
-    render: () =>
-
-
-  class UnitInfoHandler
-    constructor: (@world, @$el, @renderer) ->
-
-    renderUnit: (unit) =>
-      # TODO move this template into its own file, _.template() it and require it
-      # TODO only update the part of the DOM you need to change
-      # TODO better hunger and tired sliders
-      # TODO general health/happiness for units
-      html = $(_.template(
+    html:
         """
         <div class="individual unitinfo">
           <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
@@ -57,26 +46,33 @@ define [
           </div>
         </div>
         """
+
+    render: () =>
+      # TODO move this template into its own file, _.template() it and require it
+      # TODO only update the part of the DOM you need to change
+      # TODO better hunger and tired sliders
+      # TODO general health/happiness for units
+      html = $(_.template(@html
       , {
           # 20 frames per second -> 1000 / 20 milliseconds per frame
-          ageString: millisecondsToStr(unit.age() * (1000 / 20))
-          name: unit.constructor.name
-          hunger: unit.hunger
+          ageString: millisecondsToStr(@unit.age() * (1000 / 20))
+          name: @unit.constructor.name
+          hunger: @unit.hunger
           hungerColor: switch
-            when unit.hunger < 300 then "green"
-            when unit.hunger < 600 then "yellow"
-            when unit.hunger < 800 then "orange"
+            when @unit.hunger < 300 then "green"
+            when @unit.hunger < 600 then "yellow"
+            when @unit.hunger < 800 then "orange"
             else "red"
-          tired: unit.tired
+          tired: @unit.tired
           tiredColor: switch
-            when unit.tired < 300 then "green"
-            when unit.tired < 600 then "yellow"
-            when unit.tired < 800 then "orange"
+            when @unit.tired < 300 then "green"
+            when @unit.tired < 600 then "yellow"
+            when @unit.tired < 800 then "orange"
             else "red"
-          currentTaskString: unit.currentTask?.toString() || "Nothing"
-          thoughts: _.map(unit.getRecentThoughts(), (thought) =>
+          currentTaskString: @unit.currentTask?.toString() || "Nothing"
+          thoughts: _.map(@unit.getRecentThoughts(), (thought) =>
             thought: thought.thought
-            ageString: millisecondsToStr((unit.age() - thought.age) * 1000 / 20)
+            ageString: millisecondsToStr((@unit.age() - thought.age) * 1000 / 20)
           )
         }
       ))
@@ -96,10 +92,25 @@ define [
       html
 
 
+  class UnitInfoHandler
+    constructor: (@world, @$el, @renderer) ->
+      @views = []
+      @world.selection.on("add", @addView)
+
+      @addView(unit) for unit in @world.selection.units
+
+      @world.selection.on("remove", (unit) =>
+        @views = _.reject(@views, (view) -> view.unit is unit)
+      )
+
+    addView: (unit) =>
+      view = new SingleUnitInfo(unit)
+      @views.push(view)
+
     render: () =>
       @$el.empty()
-      if not _.isEmpty(@world.selection.units)
-        @$el.append(@renderUnit(unit)) for unit in @world.selection.units
+      if not _.isEmpty(@views)
+        @$el.append(view.render()) for view in @views
       else
         @$el.text("Left-click a unit to select it!")
 
