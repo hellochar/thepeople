@@ -68,10 +68,10 @@ require [
     has: (unit) -> unit in @units
 
   class World
-    constructor: (@width, @height, tileTypeFor) ->
+    constructor: (@width, @height) ->
       # Age is the number of frames this World has been stepped for
       @age = 0
-      @map = new Map(@, tileTypeFor)
+      @map = new Map(@)
       @playerVision = new Vision(this)
       @selection = new Selection([], @playerVision, this)
 
@@ -81,6 +81,7 @@ require [
       @selection.add(starter)
 
     addEntity: (entity) =>
+      console.log("#{entity} cannot be put there!") unless @map.hasRoomFor(entity)
       entity.world = this
       entity.birth = @age
       @entities.push(entity)
@@ -117,80 +118,21 @@ require [
       $(this).trigger("poststep")
       @age += 1
 
-  class Grass extends Map.Tile
-    dependencies: () -> []
-    getSpriteLocation: (deps) -> { x: 21, y: 4 }
-
-  class DryGrass extends Map.Tile
-    dependencies: () => @neighbors()
-
-    maybeGrassSprite: (namedDeps) =>
-      left = (namedDeps.left is Grass)
-      right = (namedDeps.right is Grass)
-      up = (namedDeps.up is Grass)
-      down = (namedDeps.down is Grass)
-      if left
-        if up
-          {x: 24, y: 5}
-        else if down
-          {x: 24, y: 4}
-        else
-          {x: 22, y: 4}
-      else if right
-        if up
-          {x: 23, y: 5}
-        else if down
-          {x: 23, y: 4}
-        else
-          {x: 20, y: 4}
-      else if down #we've accounted for down-left and down-right already
-        {x: 21, y: 3}
-      else if up # same w/ up-left and up-right
-        {x: 21, y: 5}
-      else
-        null
-
-    maybeWallSprite: (namedDeps) =>
-      down = (namedDeps.down == Wall)
-      if down
-        {x: 23, y: 10}
-      else
-        null
-
-    getSpriteLocation: (deps) =>
-      namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
-      @maybeGrassSprite(namedDeps) || @maybeWallSprite(namedDeps) || {x: 21, y: 0}
-
-  class Wall extends Map.Tile
-    @colliding: true
-
-    dependencies: () => @neighbors()
-
-    maybeDryGrassSprite: (namedDeps) =>
-      down = namedDeps.down is DryGrass
-      if down
-        {x: 23, y: 13}
-      else
-        null
-
-    getSpriteLocation: (deps) =>
-      namedDeps = {left: deps[0], right: deps[1], up: deps[2], down: deps[3]}
-      # [ {x: 22, y: 6}, {x: 23, y: 6}, {x: 22, y: 7}, {x: 23, y: 7} ]
-      @maybeDryGrassSprite(namedDeps) || {x: 22, y: 6}
-
-
-
   setupWorld = () ->
-    world = new World(60, 60, (x, y) ->
-      if y % 12 <= 1 && (x + y) % 30 > 5
-        Wall
-      else if Math.sin(x*y / 100) > .90
-        Grass
-      else
-        DryGrass
+    world = new World(16, 16)
+    require(["game/tile"], (Tile) =>
+      # Create 5 oases
+      for x in [0...world.width]
+        for y in [0...world.height]
+          world.map.setTile(x, y, Tile.Grass) if Math.random() < .1
     )
+    for i in [0...1]
+      x = Math.random() * world.width | 0
+      y = Math.random() * world.height | 0
+      world.addEntity(new Entity.Tree(x, y))
+
     for x in [0...world.width]
-      for y in [0...world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
+      for y in [0...world.height] when Math.random() < .1 # when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
         if world.map.isUnoccupied(x, y)
           food = new Entity.Food(x, y)
           world.addEntity(food)
@@ -233,7 +175,14 @@ require [
 
       @unitinfo = new UnitInfoHandler(@world, $("#unitinfo"), this)
 
+    drawOccupied: (x, y) =>
+      free = @world.map.isUnoccupied(x, y)
+      if not free
+        cq.fillRect(x * @CELL_PIXEL_SIZE, y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
+        # cq.fillStyle("grey").globalAlpha(0.5).fillRect(x * @CELL_PIXEL_SIZE, y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE).globalAlpha(1)
+
     drawWorld: () =>
+      cq = @cq
       topLeftCorner = @cellPosition(0, 0)
       bottomRightCorner = @cellPosition(cq.canvas.width, cq.canvas.height)
 
@@ -259,6 +208,14 @@ require [
       e.draw(this) for e in _.sortBy(@world.playerVision.getRememberedEntities(), entitySorter)
       cq.context.globalAlpha = 1.0
       e.draw(this) for e in _.sortBy(@world.playerVision.getVisibleEntities(), entitySorter)
+
+      cq.fillStyle("red").globalAlpha(0.5)
+      for x in [Math.max(0, topLeftCorner.x)...Math.min(@world.map.width, bottomRightCorner.x)]
+        for y in [Math.max(0, topLeftCorner.y)...Math.min(@world.map.height, bottomRightCorner.y)]
+          tile = @world.map.getCell(x, y).tileInstance
+          if tile.visionInfo isnt 0
+            @drawOccupied(x, y)
+
 
     drawTextBox: (lines, left, bottom) =>
       return if _.isEmpty(lines)
@@ -317,7 +274,7 @@ require [
 
       #draw tooltip for currently moused over cell
       mousePt = @cellPosition(mouseX, mouseY, false)
-      @drawTextBox(@framework.clickbehavior.tooltip(cellPt), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
+      @drawTextBox(_.union(["#{cellPt.x}, #{cellPt.y}"], @framework.clickbehavior.tooltip(cellPt)), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
       cq.restore()
 
       $(@world).trigger("postrender")

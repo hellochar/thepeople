@@ -17,13 +17,13 @@ define [
     animationMillis: () => Date.now() - @timeCreated
 
     # {
-    #   -- sprite sheet location
+    #   -- sprite sheet top-left location
     #   x, y,
     #
-    #   -- dimensions of the sprite sheet cells
+    #   -- dimensions of the sprite sheet cells (going down and to the right)
     #   width: 1, height: 1
     #
-    #   -- offset to draw on the map
+    #   -- cell offset from your pt() to draw
     #   dx: 0 (float)
     #   dy: 0 (float)
     #
@@ -44,6 +44,7 @@ define [
         sprites = [sprites]
 
       for sprite in sprites
+        sprite = {x: sprite[0], y: sprite[1], dx: sprite[2], dy: sprite[3]} if _.isArray(sprite)
         throw "bad sprite #{sprite}" unless _.isObject(sprite)
         sx = sprite.x
         sy = sprite.y

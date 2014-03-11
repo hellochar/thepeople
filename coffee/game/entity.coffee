@@ -93,6 +93,12 @@ define [
 
     step: () => throw "not implemented"
 
+  class Tree extends Entity
+    spriteLocation: () => {x: 14, y: 13, dx: -1, dy: -1, width: 2, height: 2}
+
+    @hitbox: {x: -1, y: 0, width: 2, height: 1}
+
+    step: () =>
 
   class House extends Entity
     spriteLocation: () => [
@@ -295,5 +301,6 @@ define [
   Entity.House = House
   Entity.Food = Food
   Entity.Human = Human
+  Entity.Tree = Tree
 
   return Entity

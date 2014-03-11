@@ -3,55 +3,10 @@ define [
   'rectangle'
   'game/drawable'
   'game/action'
+  'game/tile'
+  'game/entity'
   'search'
-], (Backbone, Rectangle, Drawable, Action, Search) ->
-
-  # A cell should implement the Drawable interface
-  #   which comprises only the spriteLocation method
-  class Tile extends Backbone.Model
-    initialize: () ->
-      @x = @get("cell").get("x")
-      @y = @get("cell").get("y")
-      @visionInfo = 0 # 0 == unknown, 1 = remembered, 2 = visible
-
-      depOffsets = @dependencies()
-      map = @get("cell").get("map")
-      depCells = for offset in depOffsets
-        loc = {x: @x + offset.x, y: @y + offset.y}
-        map.getCell(loc.x, loc.y)
-      @dependenciesCollection = new Backbone.Collection(depCells)
-      @listenTo(@dependenciesCollection, "change", @recompute)
-      @recompute()
-
-    recompute: () =>
-      @sprite = null
-
-    # TODO is this method even used anymore?
-    spriteLocation: () =>
-      if not @sprite
-        deps = @dependenciesCollection.map((cell) -> cell.get("type"))
-        @sprite = @getSpriteLocation(deps)
-      @sprite
-
-    @colliding: false
-
-    # an Array[ {x, y} ]
-    dependencies: () ->
-      throw "not implemented"
-
-    neighbors: () => [
-      { x: -1, y: 0},
-      { x: +1, y: 0},
-      { x: 0, y: -1},
-      { x: 0, y: +1}
-    ]
-
-    getSpriteLocation: (deps) ->
-      throw "not implemented"
-
-    draw: (renderer) =>
-      Drawable::draw.call(this, renderer)
-
+], (Backbone, Rectangle, Drawable, Action, Tile, Entity, Search) ->
 
   # {x, y, type which is a Tile constructor}
   class Cell extends Backbone.Model
@@ -63,7 +18,7 @@ define [
       )
 
   class Map
-    constructor: (@world, tileTypeFor) ->
+    constructor: (@world) ->
       @width = @world.width
       @height = @world.height
       @bounds = new Rectangle(0, 0, @width, @height)
@@ -72,6 +27,7 @@ define [
           for x in [ 0...@width ]
             new Cell({x: x, y: y, map: this})
 
+      # entry at <x, y> is an Entity, 1 or 0
       @pathfindingMatrix =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
@@ -79,7 +35,7 @@ define [
 
       for y in [ 0...@height ]
         for x in [ 0...@width ]
-          @setTile(x, y, tileTypeFor(x, y))
+          @setTile(x, y, Tile.DryGrass)
 
     withinMap: (x, y) => @bounds.within(x, y)
 
@@ -110,8 +66,20 @@ define [
 
     setTile: (x, y, tileType) =>
       if @withinMap(x, y)
+        previouslyCollided = @cells[y][x].get("type")?.colliding || 0
+        entityHere = @pathfindingMatrix[y][x] instanceof Entity
+        # entity exists, previouslyCollided       -> shouldn't ever happen
+        # entity exists, not previouslyCollided -> update type, don't touch pathfindingMatrix
+        # entity doesn't exist, previouslyCollided -> update pathfindingMatrix
+        # entity doesn't exist, not previouslyCollided -> update pathfindingMatrix
         @cells[y][x].set("type", tileType)
-        @pathfindingMatrix[y][x] = if tileType.colliding then 1 else 0
+        if entityHere
+          if previouslyCollided
+            throw "bad!"
+          else
+            "do nothing"
+        else
+          @pathfindingMatrix[y][x] = if tileType.colliding then 1 else 0
 
     getCell: (x, y) =>
       if @withinMap(x, y)
@@ -149,9 +117,7 @@ define [
       for pt in entity.getHitbox().allPoints()
         if @pathfindingMatrix[pt.y][pt.x]
           throw "#{entity} entering on an already occupied location!"
-        @pathfindingMatrix[pt.y][pt.x] = 1
-
-
-  Map.Tile = Tile
+        @pathfindingMatrix[pt.y][pt.x] = entity
+        console.log("#{pt.x}, #{pt.y} entering!")
 
   Map
