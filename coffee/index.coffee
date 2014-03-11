@@ -1,5 +1,3 @@
-"use strict";
-
 require [
   'jquery',
   'underscore'
@@ -16,9 +14,10 @@ require [
   'game/entity'
   'game/drawable'
   'game/task'
+  'game/tile'
   'game/vision'
   'game/unitinfo'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, Drawable, Task, Vision, UnitInfoHandler) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, Drawable, Task, Tile, Vision, UnitInfoHandler) ->
 
   Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
 
@@ -119,23 +118,60 @@ require [
       @age += 1
 
   setupWorld = () ->
-    world = new World(16, 16)
-    require(["game/tile"], (Tile) =>
-      # Create 5 oases
-      for x in [0...world.width]
-        for y in [0...world.height]
-          world.map.setTile(x, y, Tile.Grass) if Math.random() < .1
-    )
-    for i in [0...1]
-      x = Math.random() * world.width | 0
-      y = Math.random() * world.height | 0
-      world.addEntity(new Entity.Tree(x, y))
+    world = new World(100, 100)
 
-    for x in [0...world.width]
-      for y in [0...world.height] when Math.random() < .1 # when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-        if world.map.isUnoccupied(x, y)
-          food = new Entity.Food(x, y)
-          world.addEntity(food)
+    createOasis = (x, y) ->
+      # put some nice grass around the area
+      radius = 8
+
+      for dx in [- radius .. radius]
+        for dy in [ - radius .. radius] when Math.sqrt(dx * dx + dy * dy) <= radius
+          dist = Math.sqrt(dx * dx + dy * dy)
+          probability = Math.sqrt(dist / radius)
+          world.map.setTile(x + dx, y + dy, Tile.Grass) if Math.random() < probability
+
+      # Put some food near the center
+      for z in [0...Math.random() * 5 | 0 + 3]
+        food = new Entity.Food(x + (Math.random() - 0.5) * radius / 3 | 0, y + (Math.random() - 0.5) * radius / 3 | 0)
+        world.addEntity(food) if world.map.hasRoomFor(food)
+
+      # put a few trees; about one per 12 squares
+      for z in [0...radius * radius * Math.PI / 12]
+        # Only put trees in the middle half of the circle ( the Math.random() - .5 goes from -1/2 to 1/2 )
+        tree = new Entity.Tree(x + (Math.random() - 0.5) * radius | 0, y + (Math.random() - 0.5) * radius | 0)
+        world.addEntity(tree) if world.map.hasRoomFor(tree)
+
+    createWall = (x, y) ->
+      radius = Math.random() * 10 + 15 | 0
+      startAngle = Math.random() * Math.PI * 2
+      endAngle = startAngle + (.25 + Math.random()) * Math.PI
+
+      # circumference is 2pi*r, each angle changes by 
+      circumference = 2 * Math.PI * radius
+      for angle in [startAngle..endAngle] by Math.PI / 2 / circumference
+        dx = Math.cos(angle) * radius | 0
+        dy = Math.sin(angle) * radius | 0
+        world.map.setTile(x + dx, y + dy, Tile.Wall)
+        world.map.setTile(x + dx + 1, y + dy, Tile.Wall)
+
+    require(["game/tile"], (Tile) =>
+      # put half-circle walls everywhere
+      # Create 5 oases
+      for i in [0...5]
+        x = world.width / 3 + (1/3) * Math.random() * world.width | 0
+        y = world.height / 3 + (1/3) * Math.random() * world.height | 0
+        createWall(x, y)
+      for i in [0...5]
+        x = Math.random() * world.width | 0
+        y = Math.random() * world.height | 0
+        createOasis(x, y)
+    )
+
+    # for x in [0...world.width]
+    #   for y in [0...world.height] when Math.random() < .01 # when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
+    #     if world.map.isUnoccupied(x, y)
+    #       food = new Entity.Food(x, y)
+    #       world.addEntity(food)
 
     world
 
@@ -209,12 +245,12 @@ require [
       cq.context.globalAlpha = 1.0
       e.draw(this) for e in _.sortBy(@world.playerVision.getVisibleEntities(), entitySorter)
 
-      cq.fillStyle("red").globalAlpha(0.5)
-      for x in [Math.max(0, topLeftCorner.x)...Math.min(@world.map.width, bottomRightCorner.x)]
-        for y in [Math.max(0, topLeftCorner.y)...Math.min(@world.map.height, bottomRightCorner.y)]
-          tile = @world.map.getCell(x, y).tileInstance
-          if tile.visionInfo isnt 0
-            @drawOccupied(x, y)
+      # cq.fillStyle("red").globalAlpha(0.5)
+      # for x in [Math.max(0, topLeftCorner.x)...Math.min(@world.map.width, bottomRightCorner.x)]
+      #   for y in [Math.max(0, topLeftCorner.y)...Math.min(@world.map.height, bottomRightCorner.y)]
+      #     tile = @world.map.getCell(x, y).tileInstance
+      #     if tile.visionInfo isnt 0
+      #       @drawOccupied(x, y)
 
 
     drawTextBox: (lines, left, bottom) =>
