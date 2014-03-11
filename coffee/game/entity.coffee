@@ -94,7 +94,12 @@ define [
     step: () => throw "not implemented"
 
   class Tree extends Entity
-    spriteLocation: () => {x: 14, y: 13, dx: -1, dy: -1, width: 2, height: 2}
+    constructor: () ->
+      super()
+      @spriteLocation = ((pt) ->
+        () ->
+          {x: pt.x, y: pt.y, dx: -1, dy: -1, width: 2, height: 2}
+      )(_.sample([{x: 14, y: 13}, {x: 12, y: 12}]))
 
     @hitbox: {x: -1, y: 0, width: 2, height: 1}
 

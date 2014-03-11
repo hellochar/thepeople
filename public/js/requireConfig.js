@@ -13,7 +13,7 @@ var require = {
         seedrandom: ['vendor/seedrandom'],
         'socket.io': ['/socket.io/socket.io'],
         stats: ['vendor/stats'],
-        underscore: ['vendor/underscore'],
+        underscore: ['vendor/underscore/underscore'],
 
     },
     shim: {

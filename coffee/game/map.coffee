@@ -114,6 +114,5 @@ define [
         if @pathfindingMatrix[pt.y][pt.x]
           throw "#{entity} entering on an already occupied location!"
         @pathfindingMatrix[pt.y][pt.x] = entity
-        console.log("#{pt.x}, #{pt.y} entering!")
 
   Map
