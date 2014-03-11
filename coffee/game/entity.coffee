@@ -91,19 +91,17 @@ define [
       else
         "[#{@constructor.name}, not in world, (#{@x}, #{@y})]"
 
-    step: () => throw "not implemented"
+    step: () =>
 
   class Tree extends Entity
     constructor: () ->
-      super()
+      super(arguments...)
       @spriteLocation = ((pt) ->
         () ->
           {x: pt.x, y: pt.y, dx: -1, dy: -1, width: 2, height: 2}
-      )(_.sample([{x: 14, y: 13}, {x: 12, y: 12}]))
+      )(_.sample([{x: 14, y: 13}, {x: 12, y: 14}]))
 
     @hitbox: {x: -1, y: 0, width: 2, height: 1}
-
-    step: () =>
 
   class House extends Entity
     spriteLocation: () => [
@@ -124,8 +122,6 @@ define [
 
     @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
-    step: () =>
-
   class Food extends Entity
     constructor: (@x, @y) ->
       super(@x, @y)
@@ -135,8 +131,6 @@ define [
       @amount -= amount
       if @amount <= 0
         @die()
-
-    step: () =>
 
     spriteLocation: () =>
       x: 14

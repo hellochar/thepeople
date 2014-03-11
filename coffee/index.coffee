@@ -127,7 +127,7 @@ require [
       for dx in [- radius .. radius]
         for dy in [ - radius .. radius] when Math.sqrt(dx * dx + dy * dy) <= radius
           dist = Math.sqrt(dx * dx + dy * dy)
-          probability = Math.sqrt(dist / radius)
+          probability = Math.sqrt(1 - Math.sqrt(dist / radius))
           world.map.setTile(x + dx, y + dy, Tile.Grass) if Math.random() < probability
 
       # Put some food near the center
