@@ -9,13 +9,13 @@ define [
 ], (Backbone, Rectangle, Drawable, Action, Tile, Entity, Search) ->
 
   # {x, y, type which is a Tile constructor}
-  class Cell extends Backbone.Model
-    initialize: () =>
-      @listenTo(this, "change:type", (model, type, opts) =>
-        if @tileInstance
-          @tileInstance.stopListening()
-        @tileInstance = new type({cell: this})
-      )
+  class Cell
+    constructor: (@x, @y, @map, type) ->
+      @setType(type)
+
+    setType: (type) =>
+      @type = type
+      @tileInstance = new type(@x, @y)
 
   class Map
     constructor: (@world) ->
@@ -25,17 +25,13 @@ define [
       @cells =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
-            new Cell({x: x, y: y, map: this})
+            new Cell(x, y, this, Tile.DryGrass)
 
       # entry at <x, y> is an Entity, 1 or 0
       @pathfindingMatrix =
         for y in [ 0...@height ]
           for x in [ 0...@width ]
             0
-
-      for y in [ 0...@height ]
-        for x in [ 0...@width ]
-          @setTile(x, y, Tile.DryGrass)
 
     withinMap: (x, y) => @bounds.within(x, y)
 
@@ -66,13 +62,13 @@ define [
 
     setTile: (x, y, tileType) =>
       if @withinMap(x, y)
-        previouslyCollided = @cells[y][x].get("type")?.colliding || 0
+        previouslyCollided = @cells[y][x].type?.colliding || 0
         entityHere = @pathfindingMatrix[y][x] instanceof Entity
         # entity exists, previouslyCollided       -> shouldn't ever happen
         # entity exists, not previouslyCollided -> update type, don't touch pathfindingMatrix
         # entity doesn't exist, previouslyCollided -> update pathfindingMatrix
         # entity doesn't exist, not previouslyCollided -> update pathfindingMatrix
-        @cells[y][x].set("type", tileType)
+        @cells[y][x].setType(tileType)
         if entityHere
           if previouslyCollided
             throw "bad!"
