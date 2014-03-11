@@ -330,10 +330,9 @@ require [
       setupDebug(this)
 
     onstep: (delta, time) ->
-      surviving = () => _.any(@world.entities, (ent) => ent.vision is @world.playerVision)
-      if surviving()
+      if @world.playerVision.isSurviving()
         @world.stepAll()
-        if not surviving()
+        if not @world.playerVision.isSurviving()
           overlay("You died! You survived for #{@world.age} turns. Your performance is: ")
 
     stepRate: 20

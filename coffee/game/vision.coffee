@@ -71,8 +71,8 @@ define [
         @visibleEntitiesCache = recomputeVisibleEntities()
       @visibleEntitiesCache
 
-    isLocationVisible: (x, y) =>
-      
+    isSurviving: () =>
+      _.any(@world.entities, (ent) => ent.vision is this)
 
     getRememberedEntities: () =>
       @rememberedEntities
