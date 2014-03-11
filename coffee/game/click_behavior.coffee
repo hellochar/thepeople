@@ -23,8 +23,8 @@ define [
           tooltip: "Eat."
         }
         House:
-          task: Task.GoHome
-          tooltip: "Go home."
+          task: Task.GoHomeAndSleep
+          tooltip: "Sleep."
       }
       defaultTask =
         task: Task.WalkNear
@@ -42,7 +42,7 @@ define [
 
     onleftclick: (pt) ->
       entity = @world.entityAt(pt.x, pt.y)
-      if entity?.vision is @world.playerVision
+      if entity and @world.selection.canSelect(entity)
         if not @keys["shift"]
           @world.selection.clear()
         @world.selection.add(entity)
@@ -50,7 +50,7 @@ define [
     tooltip: (pt) =>
       clicks = []
       entity = @world.entityAt(pt.x, pt.y)
-      if entity?.vision is @world.playerVision
+      if entity and @world.selection.canSelect(entity)
         clicks.push("Left-click: select")
       clicks.push("Right-click: #{@rightclickTask(pt).tooltip}")
       clicks

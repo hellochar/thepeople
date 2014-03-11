@@ -46,7 +46,7 @@ define [
         @subtasks.shift()
       return @currentTask().nextAction()
 
-    toString: () => @currentTask().toString()
+    toString: () => @subtasks.join(", and then ")
 
   class WalkNear extends Task
 
@@ -74,7 +74,7 @@ define [
   class WalkUntilNextTo extends WalkNear
     # Assumes the entity doesn't move
     constructor: (@human, @entity) ->
-      super(@human, _.pick(@entity, "x", "y"), @entity.constructor.name)
+      super(@human, _.pick(@entity, "x", "y"))
 
     # Has the same behavior as (new WalkNear().isAlsoCompleteWhen(nearby check)).
     isComplete: () =>
@@ -94,17 +94,6 @@ define [
   class Eat extends TaskList
     constructor: (@human, @food) ->
       super(@human, [new WalkNear(@human, @food, "food"), new Consume(@human, @food)])
-
-  class GoHome extends WalkNear
-    constructor: (@human) ->
-      # find closest free bed and sleep
-      House = @human.constructor.__super__.constructor.House
-      houses = _.filter(@human.getKnownEntities(), (b) -> b instanceof House)
-      freeBeds = _.flatten(
-        _.map(houses, (b) => b.getFreeBeds(@human))
-      )
-      closestBed = _.min(freeBeds, @human.distanceTo)
-      super(@human, closestBed, "Home")
 
   class Sleep extends Task
     constructor: (@human) ->
@@ -148,12 +137,21 @@ define [
         @cancel("#{@human.constructor.name} cannot reach building!")
       new BuildAction(this)
 
-    thought: () => "Building a #{@entity.constructor.name}!"
+    toString: () => "#{super()} a #{@entity.constructor.name}"
 
   # Walk to an unplaced Entity and Build it
   class Construct extends TaskList
     constructor: (@human, @entity) ->
       super(@human, [new WalkUntilNextTo(@human, @entity), new Build(@human, @entity)])
+
+    # thought: () => "Constructing a #{@entity.constructor.name}!"
+
+  class GoHomeAndSleep extends TaskList
+    constructor: (@human, @house) ->
+      freeBedLoc = @house.getFreeBeds(@human)[0]
+      sleepLoc = freeBedLoc || @house.pt()
+      super(@human, [new WalkNear(@human, sleepLoc, "home"), new Sleep(@human)])
+
 
   Task.CancelledException = CancelledException
   Task.TaskList = TaskList
@@ -161,7 +159,7 @@ define [
   Task.WalkUntilNextTo = WalkUntilNextTo
   Task.Consume = Consume
   Task.Eat     = Eat
-  Task.GoHome  = GoHome
+  Task.GoHomeAndSleep = GoHomeAndSleep
   Task.Sleep   = Sleep
   Task.Build   = Build
   Task.Construct = Construct

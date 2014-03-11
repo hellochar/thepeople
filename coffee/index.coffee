@@ -48,14 +48,16 @@ require [
     getOverlay().text(string)
 
   class Selection
-    constructor: (@units, @world) ->
+    constructor: (@units, @vision, @world) ->
       @units ||= []
       $(@world).on("poststep", () =>
-        remove(unit) for unit in @units when unit.isDead()
+        @remove(unit) for unit in @units when unit.isDead()
       )
 
+    canSelect: (unit) => unit.vision is @vision
+
     add: (unit) ->
-      throw "bad" unless unit instanceof Entity.Human
+      throw "bad" unless @canSelect(unit)
       @units.push(unit) unless @has(unit)
 
     remove: (unit) ->
@@ -71,7 +73,7 @@ require [
       @age = 0
       @map = new Map(@, tileTypeFor)
       @playerVision = new Vision(this)
-      @selection = new Selection()
+      @selection = new Selection([], @playerVision, this)
 
       @entities = []
       @addEntity(new Entity.House(10, 10))
@@ -95,10 +97,6 @@ require [
       entity
 
     withinMap: (x, y) => @map.withinMap(x, y)
-
-    # Returns true iff the spot is free space
-    isUnoccupied: (x, y) =>
-      return @map.isUnoccupied(x, y)
 
     # TODO make this O(1) by caching entityAt's and only updating them
     # when an Entity moves
@@ -193,7 +191,7 @@ require [
     )
     for x in [0...world.width]
       for y in [0...world.height] when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-        if world.isUnoccupied(x, y)
+        if world.map.isUnoccupied(x, y)
           food = new Entity.Food(x, y)
           world.addEntity(food)
 
@@ -300,15 +298,17 @@ require [
 
       @unitinfo.render()
 
+      cellPt = @cellPosition(mouseX, mouseY, true)
 
       # draw red/green overlay for whether you can walk there
-      cellPt = @cellPosition(mouseX, mouseY, true)
-      if @world.map.isUnoccupied(cellPt.x, cellPt.y) then cq.fillStyle("green") else cq.fillStyle("red")
+      # entity = @world.entityAt(cellPt.x, cellPt.y)
+      # if entity
+      #   if @world.selection.canSelect(entity) then cq.fillStyle("green") else cq.fillStyle("yellow")
+      cq.save().fillStyle("green").globalAlpha(0.5).fillRect(cellPt.x * @CELL_PIXEL_SIZE, cellPt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE).restore()
 
 
       # draw selection circles
       cq.save()
-      cq.globalAlpha(0.5).fillRect(cellPt.x * @CELL_PIXEL_SIZE, cellPt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
       for unit in @world.selection.units
         centerX = (unit.x + .5) * @CELL_PIXEL_SIZE
         centerY = (unit.y + .5) * @CELL_PIXEL_SIZE
@@ -402,7 +402,6 @@ require [
         else
           b: () => makeHumanBuild(human, Entity.House, mousePt)
           q: () => makeHumanBuild(human, Entity.Human, mousePt)
-          h: () => human.setCurrentTask( new Task.GoHome(human) )
           z: () => human.die()
       )(freeHuman)[key]?()
 

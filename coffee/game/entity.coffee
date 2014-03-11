@@ -12,6 +12,10 @@ define [
       # array of {age: age(), thought: string}
       @thoughts = []
 
+    pt: () =>
+      x: @x
+      y: @y
+
     # Only move Entities through this method
     move: (offset) =>
       @setLocation(@x + offset.x, @y + offset.y)
@@ -31,9 +35,9 @@ define [
     think: (str) =>
       @thoughts.unshift({age: @age(), thought: str})
 
-    # Get all thoughts in the past 100 steps
+    # Get all thoughts in the past 100 steps (about 10 seconds), limited to 20
     getRecentThoughts: () =>
-      _.filter(@thoughts, (thought) => @age() - thought.age < 100)
+      _.filter(@thoughts, (thought) => @age() - thought.age < 200)[0...20]
 
     # Returns the number of frames this entity has been alive for
     age: () => @world.age - @birth
@@ -100,10 +104,12 @@ define [
 
     @sightRange: 3
 
+    # Beds not currently occupied
+    # A bed is actually just a location adjacent to my pt
     getFreeBeds: (human) =>
       beds = [{ x: @x + 1, y: @y},
               { x: @x, y: @y + 1}]
-      _.filter(beds, (pt) => @world.isUnoccupied(pt.x, pt.y))
+      _.filter(beds, (pt) => @world.map.canOccupy(human, pt.x, pt.y))
 
     @hitbox: {x: -1, y: -1, width: 2, height: 2}
 
@@ -185,8 +191,12 @@ define [
 
       if @tired > 300
         tasks.push( () =>
-          @think("I'm tired!")
-          (new Task.GoHome(this)).andThen(new Task.Sleep(this))
+          closestHomeWithFreeBed = houses = _.filter(@getKnownEntities(), (b) => b instanceof House and not _.isEmpty(b.getFreeBeds(this)))[0]
+          if closestHomeWithFreeBed
+            @think("I'm tired! Time to sleep!")
+            new Task.GoHomeAndSleep(this, closestHomeWithFreeBed)
+          else
+            @think("I'm tired but there's no place to sleep!")
         )
 
       tasks
@@ -199,7 +209,7 @@ define [
       return if task.isComplete()
 
       @currentTask = task
-      @think(task.thought()) if task.thought
+      @think(task.thought?() || task.toString())
 
     # call this to notify the entity that its current task got cancelled
     currentTaskCancelled: (err) =>

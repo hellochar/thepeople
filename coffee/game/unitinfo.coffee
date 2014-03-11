@@ -22,7 +22,7 @@ define [
     return hours + " hour" + numberEnding(hours)  if hours
     minutes = Math.floor((temp %= 3600) / 60)
     return minutes + " minute" + numberEnding(minutes)  if minutes
-    seconds = temp % 60
+    seconds = temp % 60 | 0
     return seconds + " second" + numberEnding(seconds)  if seconds
     "less then a second" #'just now' //or other string you like;
 
@@ -43,7 +43,6 @@ define [
       html = $(_.template(
         """
         <div class="individual unitinfo">
-          <canvas class="view" width=50 height=50></canvas>
           <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
           <div>
             <p style="background-color: <%= hungerColor %>"> Hunger: <%= hunger | 0 %> </p>
@@ -53,7 +52,7 @@ define [
 
             <h3> Thoughts </h3>
             <% _.each(thoughts, function(thought) { %>
-              <li> <%= thought.thought %> </li>
+              <li> <%= thought.ageString %> ago - <%= thought.thought %> </li>
             <% }); %>
           </div>
         </div>
@@ -75,21 +74,24 @@ define [
             when unit.tired < 800 then "orange"
             else "red"
           currentTaskString: unit.currentTask?.toString() || "Nothing"
-          thoughts: unit.getRecentThoughts()
+          thoughts: _.map(unit.getRecentThoughts(), (thought) =>
+            thought: thought.thought
+            ageString: millisecondsToStr((unit.age() - thought.age) * 1000 / 20)
+          )
         }
       ))
 
-      sourceLocation = @renderer.renderPosition(unit.x, unit.y)
-      canvasCq = cq(html.find(".view")[0])
-      canvasCq.drawImage(
-        @renderer.cq.canvas,
-        sourceLocation.x - @renderer.CELL_PIXEL_SIZE,
-        sourceLocation.y - @renderer.CELL_PIXEL_SIZE,
-        @renderer.CELL_PIXEL_SIZE * 3,
-        @renderer.CELL_PIXEL_SIZE * 3,
-        0, 0,
-        canvasCq.canvas.width, canvasCq.canvas.height
-      )
+      # sourceLocation = @renderer.renderPosition(unit.x, unit.y)
+      # canvasCq = cq(html.find(".view")[0])
+      # canvasCq.drawImage(
+      #   @renderer.cq.canvas,
+      #   sourceLocation.x - @renderer.CELL_PIXEL_SIZE,
+      #   sourceLocation.y - @renderer.CELL_PIXEL_SIZE,
+      #   @renderer.CELL_PIXEL_SIZE * 3,
+      #   @renderer.CELL_PIXEL_SIZE * 3,
+      #   0, 0,
+      #   canvasCq.canvas.width, canvasCq.canvas.height
+      # )
 
       html
 
