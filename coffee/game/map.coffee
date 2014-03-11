@@ -24,11 +24,13 @@ define [
       @recompute()
 
     recompute: () =>
-      deps = @dependenciesCollection.map((cell) -> cell.get("type"))
-      @sprite = @getSpriteLocation(deps)
+      @sprite = null
 
     # TODO is this method even used anymore?
     spriteLocation: () =>
+      if not @sprite
+        deps = @dependenciesCollection.map((cell) -> cell.get("type"))
+        @sprite = @getSpriteLocation(deps)
       @sprite
 
     @colliding: false

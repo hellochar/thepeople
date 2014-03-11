@@ -133,10 +133,10 @@ define [
       # @setLocation(@x, @y)
 
       # How hungry you are.
-      @hunger = 900
+      @hunger = 0
 
       # How tired you are. Will affect your action taking capabilities if you're too tired
-      @tired = 800
+      @tired = 0
 
       # Your current task
       @currentTask = null

@@ -224,6 +224,7 @@ require [
 
   class Renderer
     constructor: (@world, @cq, @framework, @CELL_PIXEL_SIZE = 32) ->
+      # Top-left cell coordinates of the viewport
       @camera = {
         x: 0
         y: 0
@@ -231,6 +232,8 @@ require [
       @cq.context.imageSmoothingEnabled = false
       @cq.context.webkitImageSmoothingEnabled = false
       @cq.context.mozImageSmoothingEnabled = false
+
+      @unitinfo = new UnitInfoHandler(@world, $("#unitinfo"), this)
 
     drawWorld: () =>
       topLeftCorner = @cellPosition(0, 0)
@@ -278,7 +281,6 @@ require [
 
     render: (delta, keys, mouseX, mouseY) =>
       cq = @cq
-      # oh god this is so bad
       $(@world).trigger("prerender")
 
       mapping = {
@@ -290,14 +292,21 @@ require [
 
       for key, fn of mapping
         fn() if keys[key]
+
       cq.clear("black")
       cq.save()
       cq.translate(@camera.x * @CELL_PIXEL_SIZE, @camera.y * @CELL_PIXEL_SIZE)
       @drawWorld()
 
+      @unitinfo.render()
 
+
+      # draw red/green overlay for whether you can walk there
       cellPt = @cellPosition(mouseX, mouseY, true)
       if @world.map.isUnoccupied(cellPt.x, cellPt.y) then cq.fillStyle("green") else cq.fillStyle("red")
+
+
+      # draw selection circles
       cq.save()
       cq.globalAlpha(0.5).fillRect(cellPt.x * @CELL_PIXEL_SIZE, cellPt.y * @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE, @CELL_PIXEL_SIZE)
       for unit in @world.selection.units
@@ -305,6 +314,8 @@ require [
         centerY = (unit.y + .5) * @CELL_PIXEL_SIZE
         cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, @CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
       cq.restore()
+
+      #draw tooltip for currently moused over cell
       mousePt = @cellPosition(mouseX, mouseY, false)
       @drawTextBox(@framework.clickbehavior.tooltip(cellPt), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
       cq.restore()
@@ -316,6 +327,14 @@ require [
       y = canvasY / @CELL_PIXEL_SIZE - @camera.y
       x: if truncate then x | 0 else x
       y: if truncate then y | 0 else y
+
+    # Find where the given cell is located in canvas pixels
+    # account for translating
+    renderPosition: (cellX, cellY) =>
+      pixelX = (cellX + @camera.x | 0) * @CELL_PIXEL_SIZE
+      pixelY = (cellY + @camera.y | 0) * @CELL_PIXEL_SIZE
+      x: pixelX
+      y: pixelY
 
   framework = {
     setup: () ->
@@ -331,8 +350,6 @@ require [
       @cq.appendTo("#viewport")
 
       @renderer = new Renderer(@world, @cq, this)
-
-      @unitinfo = new UnitInfoHandler(@world, $("#unitinfo"))
 
       @clickbehavior = new ClickBehavior.Default(@world, @keys)
 
@@ -368,7 +385,6 @@ require [
       @mouseY = y
 
     onmousewheel: (delta) ->
-      # CELL_PIXEL_SIZE *= Math.pow(1.05, delta)
 
     # keyboard events
     onkeydown: (key) ->
@@ -379,7 +395,7 @@ require [
 
       mousePt = @renderer.cellPosition(@mouseX, @mouseY)
 
-      freeHuman = _.find(@world.selection.units, (unit) -> unit.currentTask == null)
+      freeHuman = @world.selection.units[0]
       ((human) =>
         if not human
           {}

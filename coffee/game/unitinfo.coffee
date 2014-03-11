@@ -1,7 +1,8 @@
 define [
   'jquery'
   'underscore'
-], ($, _) ->
+  'canvasquery'
+], ($, _, cq) ->
 
   millisecondsToStr = (milliseconds) ->
     
@@ -32,20 +33,17 @@ define [
 
 
   class UnitInfoHandler
-    constructor: (@world, @$el) ->
-      $(@world).on("poststep", () =>
-        @render()
-      )
-
+    constructor: (@world, @$el, @renderer) ->
 
     renderUnit: (unit) =>
       # TODO move this template into its own file, _.template() it and require it
       # TODO only update the part of the DOM you need to change
       # TODO better hunger and tired sliders
       # TODO general health/happiness for units
-      _.template(
+      html = $(_.template(
         """
         <div class="individual unitinfo">
+          <canvas class="view" width=50 height=50></canvas>
           <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
           <div>
             <p style="background-color: <%= hungerColor %>"> Hunger: <%= hunger | 0 %> </p>
@@ -79,7 +77,21 @@ define [
           currentTaskString: unit.currentTask?.toString() || "Nothing"
           thoughts: unit.getRecentThoughts()
         }
+      ))
+
+      sourceLocation = @renderer.renderPosition(unit.x, unit.y)
+      canvasCq = cq(html.find(".view")[0])
+      canvasCq.drawImage(
+        @renderer.cq.canvas,
+        sourceLocation.x - @renderer.CELL_PIXEL_SIZE,
+        sourceLocation.y - @renderer.CELL_PIXEL_SIZE,
+        @renderer.CELL_PIXEL_SIZE * 3,
+        @renderer.CELL_PIXEL_SIZE * 3,
+        0, 0,
+        canvasCq.canvas.width, canvasCq.canvas.height
       )
+
+      html
 
 
     render: () =>
