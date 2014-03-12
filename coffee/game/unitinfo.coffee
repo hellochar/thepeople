@@ -29,53 +29,67 @@ define [
   class SingleUnitInfo
     constructor: (@unit) ->
 
-    html:
+    template: _.template(
         """
         <div class="individual unitinfo">
           <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
           <div>
-            <p style="background-color: <%= hungerColor %>"> Hunger: <%= hunger | 0 %> </p>
-            <p style="background-color: <%= tiredColor %>"> Tired: <%= tired | 0 %> </p>
+            <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
+            <p> Tired: <span class="tired indicator-bar"><span></span></span> </p>
+            <p> Happiness: <%= affect | 0 %> </p>
 
             <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
             <h3> Thoughts </h3>
             <% _.each(thoughts, function(thought) { %>
-              <li> <%= thought.ageString %> ago - <%= thought.thought %> </li>
+              <li class="color: <%= thought.color %>"> <%= thought.ageString %> ago - <%= thought.thought %> </li>
             <% }); %>
           </div>
         </div>
         """
+    )
 
     render: () =>
       # TODO move this template into its own file, _.template() it and require it
       # TODO only update the part of the DOM you need to change
       # TODO better hunger and tired sliders
       # TODO general health/happiness for units
-      html = $(_.template(@html
-      , {
+      $html = $(@template(
           # 20 frames per second -> 1000 / 20 milliseconds per frame
           ageString: millisecondsToStr(@unit.age() * (1000 / 20))
-          name: @unit.constructor.name
-          hunger: @unit.hunger
-          hungerColor: switch
-            when @unit.hunger < 300 then "green"
-            when @unit.hunger < 600 then "yellow"
-            when @unit.hunger < 800 then "orange"
-            else "red"
-          tired: @unit.tired
-          tiredColor: switch
-            when @unit.tired < 300 then "green"
-            when @unit.tired < 600 then "yellow"
-            when @unit.tired < 800 then "orange"
-            else "red"
+          name: @unit.name
+          affect: @unit.affect
           currentTaskString: @unit.currentTask?.toString() || "Nothing"
           thoughts: _.map(@unit.getRecentThoughts(), (thought) =>
             thought: thought.thought
             ageString: millisecondsToStr((@unit.age() - thought.age) * 1000 / 20)
+            color: switch
+              when thought.affect < -50 then "red"
+              when thought.affect < 0 then "orange"
+              when thought.affect is 0 then "black"
+              when thought.affect > 0 then "green"
+              else "black"
           )
-        }
       ))
+      hungerColor = switch
+        when @unit.hunger < 300 then "lightgreen"
+        when @unit.hunger < 600 then "yellow"
+        when @unit.hunger < 800 then "orange"
+        else "red"
+      $html.find(".hunger.indicator-bar span").css(
+        width: @unit.hunger / 1000 * 100 + "%"
+        "background-color": hungerColor
+      )
+
+      tiredColor = switch
+        when @unit.tired < 300 then "lightgreen"
+        when @unit.tired < 600 then "yellow"
+        when @unit.tired < 800 then "orange"
+        else "red"
+      $html.find(".tired.indicator-bar span").css(
+        width: @unit.tired / 1000 * 100 + "%"
+        "background-color": tiredColor
+      )
 
       # sourceLocation = @renderer.renderPosition(unit.x, unit.y)
       # canvasCq = cq(html.find(".view")[0])
@@ -89,7 +103,7 @@ define [
       #   canvasCq.canvas.width, canvasCq.canvas.height
       # )
 
-      html
+      $html
 
 
   class UnitInfoHandler

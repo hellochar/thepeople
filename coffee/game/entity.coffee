@@ -5,12 +5,128 @@ define [
   'game/drawable'
 ], (Rectangle, Action, Task, Drawable) ->
 
+  FEMALE_NAMES = [
+    "Genoveva"
+    "Kristin"
+    "Neas"
+    "Sabia"
+    "Gaia"
+    "Svanhildr"
+    "Carme"
+    "Amordad"
+    "Daphine"
+    "Abbie"
+    "Raina"
+    "Erlinda"
+    "Malia"
+    "Bernardina"
+    "Marina"
+    "Twyla"
+    "Davina"
+    "Vena"
+    "Quiana"
+    "Linnea"
+    "Tawana"
+    "Corrinne"
+    "Earnestine"
+    "Yen"
+    "Maxine"
+    "Lahoma"
+    "Tatyana"
+    "Diedre"
+    "Xuan"
+    "Mozella"
+    "Evonne"
+    "Lang"
+    "Rossana"
+    "Usha"
+    "Chasity"
+    "Loise"
+    "Versie"
+    "Raylene"
+    "Wei"
+    "Elly"
+    "Melony"
+    "Shauna"
+    "Jerrica"
+    "Pamela"
+    "Mariel"
+    "Argelia"
+    "Wan"
+    "Heather"
+    "Mariam"
+    "Sallie"
+    "Jessenia"
+    "Perla"
+    "Joannie"
+    "Vickey"
+    "Andree"
+    "Annice"
+    "Hiedi"
+    "Lucila"
+  ]
+
+  MALE_NAMES = [
+    "Jed"
+    "Cedric"
+    "Doug"
+    "Stewart"
+    "Nathan"
+    "Terrell"
+    "Hyman"
+    "Delmer"
+    "Rudolph"
+    "Dusty"
+    "Zane"
+    "King"
+    "Elwood"
+    "Duncan"
+    "Dillon"
+    "Rodrick"
+    "Harland"
+    "Donnie"
+    "Theo"
+    "Winfred"
+    "Zackary"
+    "Rogelio"
+    "Ramon"
+    "Herbert"
+    "Vaughn"
+    "Henry"
+    "Clint"
+    "Lon"
+    "Sang"
+    "Jeffry"
+    "Mohamed"
+    "Irvin"
+    "Jesse"
+    "Yong"
+    "Casey"
+    "Nelson"
+    "Kermit"
+    "Cliff"
+    "Carmen"
+    "Everette"
+    "Orville"
+    "Steve"
+    "Fabian"
+    "Dannie"
+    "Derrick"
+    "Gale"
+    "Royal"
+    "Burton"
+    "Arnoldo"
+    "Lacy"
+  ]
+
   class Entity extends Drawable
     constructor: (@x, @y, @vision) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
       # array of {age: age(), thought: string}
       @thoughts = []
+
+      @affect = 0
 
     pt: () =>
       x: @x
@@ -32,8 +148,9 @@ define [
       else
         false
 
-    think: (str) =>
-      @thoughts.unshift({age: @age(), thought: str})
+    think: (str, affect = 0) =>
+      @thoughts.unshift({age: @age(), thought: str, affect: affect})
+      @affect += affect
 
     # Get all thoughts in the past 100 steps (about 10 seconds), limited to 20
     getRecentThoughts: () =>
@@ -145,6 +262,11 @@ define [
     initialize: () =>
       # @setLocation(@x, @y)
 
+
+      @gender = if Math.random() < .5 then "male" else "female"
+
+      @name = _.sample({male: MALE_NAMES, female: FEMALE_NAMES}[@gender])
+
       # How hungry you are.
       @hunger = 0
 
@@ -192,7 +314,7 @@ define [
             @think("I'm hungry. Time to eat!")
             new Task.Eat(this, closestFood)
           else
-            @think("I'm hungry but there's no food!")
+            @think("I'm hungry but there's no food!", -10)
             false
         )
 
@@ -203,7 +325,7 @@ define [
             @think("I'm tired! Time to sleep!")
             new Task.GoHomeAndSleep(this, closestHomeWithFreeBed)
           else
-            @think("I'm tired but there's no place to sleep!")
+            @think("I'm tired but there's no place to sleep!", -10)
         )
 
       tasks
@@ -216,7 +338,7 @@ define [
       return if task.isComplete()
 
       @currentTask = task
-      @think(task.thought?() || task.toString())
+      @think(task.thought()) if task.thought
 
     # call this to notify the entity that its current task got cancelled
     currentTaskCancelled: (err) =>
@@ -233,7 +355,7 @@ define [
       # find the first task that isn't complete and start doing it
       for taskFn in tasks
         task = taskFn()
-        if task && not task.isComplete()
+        if task instanceof Task && not task.isComplete()
           doableTask = task
           break
       if doableTask
@@ -253,19 +375,43 @@ define [
         return new Action.Rest()
 
     step: () =>
+      tiredBefore = @tired
+      hungerBefore = @hunger
+
       action = @getAction()
       action.perform(this)
       @currentAction = action
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
-      1
+      timeTaken = if @tired > 500 then 1 + (@tired - 500) / 125 else 1
 
-    spriteLocation: () =>
+      @hunger += timeTaken * .4
+      @tired += timeTaken * .2
+
+      if @tired > 500
+        @affect -= 1
+
+      if tiredBefore < 500 and @tired > 500
+        @think("I'm getting really exhausted!", -30)
+
+      if tiredBefore < 800 and @tired > 800
+        @think("I'm going to die of exhaustion!!!", -100)
+
+      if hungerBefore < 500 and @hunger > 500
+        @think("I'm getting really hungry!", -30)
+
+      if hungerBefore < 800 and @hunger > 800
+        @think("I'm going to die of hunger!!!", -100)
+
+
+      return timeTaken
+
+    relativeSpriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0
       spriteInfo =
-        x: [10, 9, 10, 11][spriteIdx]
-        y: {Down: 4, Left: 5, Right: 6, Up: 7}[@facing.direction]
+        x: [1, 0, 1, 2][spriteIdx]
+        y: {Down: 0, Left: 1, Right: 2, Up: 3}[@facing.direction]
         spritesheet: "characters"
 
       if not (@currentAction instanceof Action.Rest) and not (@currentAction instanceof Action.Sleep)
@@ -274,12 +420,23 @@ define [
 
       if @currentAction instanceof Action.Sleep
         spriteInfo = _.extend(spriteInfo,
-          x: 10
-          y: 6
+          x: 1
+          y: 2
           rotation: 90
         )
 
       spriteInfo
+
+    spriteLocation: () =>
+      baseX = {male: 0, female: 9}[@gender]
+      baseY = {male: 0, female: 4}[@gender]
+
+      relativeSprite = @relativeSpriteLocation()
+      relativeSprite.x += baseX
+      relativeSprite.y += baseY
+
+      relativeSprite
+
 
     draw: (renderer) =>
       super(renderer)

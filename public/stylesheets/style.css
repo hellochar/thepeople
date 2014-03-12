@@ -16,3 +16,20 @@ body {
     width: 30%;
     float: left;
 }
+
+.indicator-bar {
+    vertical-align: middle;
+    display: inline-block;
+    height: .8em;  /* Can be anything */
+    max-width: 200px;
+    width: 100%;
+    background: #555;
+    position: relative;
+    border-radius: .2em;
+    padding: .2em;
+}
+
+.indicator-bar span {
+    display: block;
+    height: 100%;
+}

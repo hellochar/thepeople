@@ -11,6 +11,7 @@ define [
       @food.consume(20)
       human.hunger -= 20
       human.tired += 1
+      human.affect += 10
 
   class MoveAction extends Action
     constructor: (@offset, @direction) ->
@@ -38,6 +39,7 @@ define [
     perform: (human) ->
       human.tired -= 3
       human.hunger += .2
+      human.affect += 3
 
   Action.Consume = ConsumeAction
 
