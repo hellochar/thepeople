@@ -32,7 +32,8 @@ define [
       entity.vision.addVisibilityEmitter(entity) if entity.emitsVision()
       @map.notifyEntering(entity)
       @entityQueue.enqueue(entity, @age) if entity.step
-      entity.initialize()
+      delete entity.properties
+      entity.initialize(entity.properties)
       entity
 
     removeEntity: (entity) =>

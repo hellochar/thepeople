@@ -120,7 +120,7 @@ define [
   ]
 
   class Entity extends Drawable
-    constructor: (@x, @y, @vision) ->
+    constructor: (@x, @y, @vision, @properties) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
       # array of {age: age(), thought: string}
@@ -133,6 +133,10 @@ define [
       # Sleeping from 300 tired gives +300 affect
       # Eating 300 food gives 150 affect
       @affect = 0
+
+
+    # Put your code in initialize(properites) =>
+    # initialize: (properties) =>
 
     # Only move Entities through this method
     move: (offset) =>
@@ -261,13 +265,10 @@ define [
   class Human extends Entity
     @sightRange: 8
 
-    initialize: () =>
-      # @setLocation(@x, @y)
+    initialize: (properties) =>
+      @gender = properties.gender || if Math.random() < .5 then "male" else "female"
 
-
-      @gender = if Math.random() < .5 then "male" else "female"
-
-      @name = _.sample({male: MALE_NAMES, female: FEMALE_NAMES}[@gender])
+      @name = properties.name || _.sample({male: MALE_NAMES, female: FEMALE_NAMES}[@gender])
 
       # How hungry you are.
       @hunger = 0

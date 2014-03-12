@@ -44,10 +44,7 @@ require [
     getOverlay().text(string)
 
   setupWorld = () ->
-    world = new World(100, 100)
-    world.addEntity(new Entity.House(10, 10, world.playerVision))
-    starter = world.addEntity(new Entity.Human(10, 11, world.playerVision))
-    world.selection.add(starter)
+    world = new World(400, 400)
 
     createOasis = (x, y) ->
       # put some nice grass around the area
@@ -83,24 +80,20 @@ require [
         world.map.setTile(x + dx, y + dy, Tile.Wall)
         world.map.setTile(x + dx + 1, y + dy, Tile.Wall)
 
-    require(["game/tile"], (Tile) =>
-      # put half-circle walls everywhere
-      # Create 5 oases
-      for i in [0...5]
-        x = world.width / 3 + (1/3) * Math.random() * world.width | 0
-        y = world.height / 3 + (1/3) * Math.random() * world.height | 0
-        createWall(x, y)
-      for i in [0...5]
-        x = Math.random() * world.width | 0
-        y = Math.random() * world.height | 0
-        createOasis(x, y)
-    )
+    # put half-circle walls everywhere
+    for i in [0...15]
+      x = world.width / 3 + (1/3) * Math.random() * world.width | 0
+      y = world.height / 3 + (1/3) * Math.random() * world.height | 0
+      createWall(x, y)
+    # Create 5 oases
+    for i in [0...15]
+      x = Math.random() * world.width | 0
+      y = Math.random() * world.height | 0
+      createOasis(x, y)
 
-    # for x in [0...world.width]
-    #   for y in [0...world.height] when Math.random() < .01 # when Math.sin((x + y) / 8) * Math.cos((x - y) / 9) > .9
-    #     if world.map.isUnoccupied(x, y)
-    #       food = new Entity.Food(x, y)
-    #       world.addEntity(food)
+    house = world.addEntity(new Entity.House(world.width/2, world.height/2, world.playerVision))
+    starter = world.addEntity(new Entity.Human(house.x, house.y + 1, world.playerVision))
+    world.selection.add(starter)
 
     world
 
@@ -141,6 +134,7 @@ require [
       @cq.appendTo("#viewport")
 
       @renderer = new Renderer(@world, @cq, this)
+      @renderer.lookAt(@world.selection.units[0])
 
       @clickbehavior = new ClickBehavior.Default(@world, @keys)
 

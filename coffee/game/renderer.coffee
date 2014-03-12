@@ -15,6 +15,16 @@ define [
       @unitinfo = new UnitInfoHandler(@world, this)
       $("#sidebar").append(@unitinfo.$el)
 
+    lookAt: (cellPt) =>
+      debugger
+      currentCellPosition = @cellPosition(@cq.canvas.width/2, @cq.canvas.height/2, false)
+      cellOffset =
+        x: cellPt.x - currentCellPosition.x
+        y: cellPt.y - currentCellPosition.y
+      @camera.x += cellOffset.x
+      @camera.y += cellOffset.y
+
+
     drawOccupied: (x, y) =>
       free = @world.map.isUnoccupied(x, y)
       if not free
@@ -79,18 +89,19 @@ define [
       $(@world).trigger("prerender")
 
       mapping = {
-        w: () => @camera.y += 1 * delta / 32
-        s: () => @camera.y -= 1 * delta / 32
-        a: () => @camera.x += 1 * delta / 32
-        d: () => @camera.x -= 1 * delta / 32
+        a: () => @camera.x -= 1 * delta / 32
+        d: () => @camera.x += 1 * delta / 32
+        w: () => @camera.y -= 1 * delta / 32
+        s: () => @camera.y += 1 * delta / 32
       }
 
       for key, fn of mapping
+        debugger if keys["left"]
         fn() if keys[key]
 
       cq.clear("black")
       cq.save()
-      cq.translate(@camera.x * @CELL_PIXEL_SIZE, @camera.y * @CELL_PIXEL_SIZE)
+      cq.translate(-@camera.x * @CELL_PIXEL_SIZE, -@camera.y * @CELL_PIXEL_SIZE)
       @drawWorld()
 
       @unitinfo.render()
@@ -119,17 +130,18 @@ define [
 
       $(@world).trigger("postrender")
 
+    # Convert a point on the canvas to its corresponding cell coordinate
     cellPosition: (canvasX, canvasY, truncate = true) =>
-      x = canvasX / @CELL_PIXEL_SIZE - @camera.x
-      y = canvasY / @CELL_PIXEL_SIZE - @camera.y
+      x = canvasX / @CELL_PIXEL_SIZE + @camera.x
+      y = canvasY / @CELL_PIXEL_SIZE + @camera.y
       x: if truncate then x | 0 else x
       y: if truncate then y | 0 else y
 
     # Find where the given cell is located in canvas pixels
     # account for translating
     renderPosition: (cellX, cellY) =>
-      pixelX = (cellX + @camera.x | 0) * @CELL_PIXEL_SIZE
-      pixelY = (cellY + @camera.y | 0) * @CELL_PIXEL_SIZE
+      pixelX = (cellX - @camera.x | 0) * @CELL_PIXEL_SIZE
+      pixelY = (cellY - @camera.y | 0) * @CELL_PIXEL_SIZE
       x: pixelX
       y: pixelY
 
