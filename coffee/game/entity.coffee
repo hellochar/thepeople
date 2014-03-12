@@ -91,7 +91,9 @@ define [
       else
         "[#{@constructor.name}, not in world, (#{@x}, #{@y})]"
 
-    step: () =>
+    # The step function gets called when it is this entity's turn to
+    # move forward. Return the time it takes to "step" (by default 1 frame)
+    # step: () => 1
 
   class Tree extends Entity
     constructor: () ->
@@ -257,6 +259,7 @@ define [
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
+      1
 
     spriteLocation: () =>
       spriteIdx = (@animationMillis() / 333) % 4 | 0

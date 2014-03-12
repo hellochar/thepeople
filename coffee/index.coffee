@@ -47,15 +47,38 @@ require [
 
     getOverlay().text(string)
 
+  class EntityQueue
+    constructor: () ->
+      @queue = []
+
+    enqueue: (entity, time) ->
+      @queue.push({time: time, entity: entity})
+      @queue = _.sortBy(@queue, "time")
+
+    peek: () => @queue[0]
+
+    dequeue: () ->
+      entry = @queue.shift()
+      entry
+
+    removeEntity: (entity) ->
+      @queue = _.reject(@queue, (entry) -> entry.entity is entity)
+
   class World
     constructor: (@width, @height) ->
       # Age is the number of frames this World has been stepped for
       @age = 0
       @map = new Map(@)
+
+      # A list of entities, in no particular order
+      @entities = []
+
+      # Holds array of {time: Number, entity: Entity to step}
+      @entityQueue = new EntityQueue()
+
       @playerVision = new Vision(this)
       @selection = new Selection([], @playerVision, this)
 
-      @entities = []
       @addEntity(new Entity.House(10, 10))
       starter = @addEntity(new Entity.Human(10, 11, @playerVision))
       @selection.add(starter)
@@ -67,6 +90,7 @@ require [
       @entities.push(entity)
       entity.vision.addVisibilityEmitter(entity) if entity.emitsVision()
       @map.notifyEntering(entity)
+      @entityQueue.enqueue(entity, @age) if entity.step
       entity.initialize()
       entity
 
@@ -74,6 +98,7 @@ require [
       idx = @entities.indexOf(entity)
       @entities.splice(idx, 1)
       entity.vision.removeVisibilityEmitter(entity) if entity.emitsVision()
+      @entityQueue.removeEntity(entity)
       @map.notifyLeaving(entity)
       entity
 
@@ -91,12 +116,27 @@ require [
 
       return null
 
-    stepAll: () =>
+    # Step the entire world by duration frames
+    stepAll: (duration = 1.0) =>
       $(this).trigger("prestep")
-      for entity in @entities
-        entity.step()
+
+      now = @age
+      endTime = now + duration
+
+      # set now = 2.3, taken = step human 1, add now + taken to entityQueue
+      # if closest time > 3.0 (start + timeStep)
+      #   set now = 3.0, poststep
+
+      nextEntry = @entityQueue.peek()
+      while nextEntry.time < endTime
+        @entityQueue.dequeue()
+        now = nextEntry.time
+        timeTaken = nextEntry.entity.step()
+        @entityQueue.enqueue(nextEntry.entity, now + timeTaken)
+        nextEntry = @entityQueue.peek()
+
+      @age += duration
       $(this).trigger("poststep")
-      @age += 1
 
   setupWorld = () ->
     world = new World(100, 100)
