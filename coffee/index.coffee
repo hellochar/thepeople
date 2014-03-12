@@ -22,11 +22,6 @@ require [
   'game/world'
 ], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, EntityQueue, Drawable, Selection, Renderer, Task, Tile, Vision, World) ->
 
-  Math.signum = (x) -> if x == 0 then 0 else x / Math.abs(x)
-
-  Math.distance = (a, b) ->
-    Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-
   # TODO move the Overlay from twoguns over
   # or better yet use a modal?
   overlay = (string) ->

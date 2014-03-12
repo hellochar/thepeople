@@ -162,7 +162,7 @@ define [
     emitsVision: () => @vision and @sightRange?
 
     distanceTo: (cell) =>
-      Math.distance(cell, this)
+      Math.abs(@x - cell.x) + Math.abs(@y - cell.y)
 
     findTilesWithin: (manhattanDist) =>
       _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map.cells)
