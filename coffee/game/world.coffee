@@ -66,7 +66,7 @@ define [
       #   set now = 3.0, poststep
 
       nextEntry = @entityQueue.peek()
-      while nextEntry.time < endTime
+      while nextEntry and nextEntry.time < endTime
         @entityQueue.dequeue()
         now = nextEntry.time
         timeTaken = nextEntry.entity.step()
