@@ -53,7 +53,7 @@ define [
           <div>
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
             <p> Tired: <span class="tired indicator-bar"><span></span></span> </p>
-            <p> Happiness: <%= affect | 0 %> </p>
+            <p> Happiness: <span class="affect indicator-bar"><span></span></span> </p>
 
             <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
@@ -104,6 +104,19 @@ define [
       $html.find(".tired.indicator-bar span").css(
         width: @unit.tired / 1000 * 100 + "%"
         "background-color": tiredColor
+      )
+
+      happinessColor = switch
+        when @unit.affect < -4000 then "red"
+        when @unit.affect < -2000 then "orange"
+        when @unit.affect < 0 then "yellow"
+        when @unit.affect < 2000 then "lightgreen"
+        when @unit.affect < 4000 then "green"
+        else "darkgreen"
+      # debugger
+      $html.find(".affect.indicator-bar span").css(
+        width: (@unit.affect + 5000) / 10000 * 100 + "%"
+        "background-color": happinessColor
       )
 
       for thought in @unit.getRecentThoughts()

@@ -126,6 +126,12 @@ define [
       # array of {age: age(), thought: string}
       @thoughts = []
 
+      # A number ranging from ~ -5000 to ~5000 denoting this unit's happiness, or mood
+      # Things like eating and sleeping help affect
+      # Not finding food, walking while tired, etc. hurt affect
+      #
+      # Sleeping from 300 tired gives +300 affect
+      # Eating 300 food gives 150 affect
       @affect = 0
 
     pt: () =>
@@ -314,7 +320,7 @@ define [
             @think("I'm hungry. Time to eat!")
             new Task.Eat(this, closestFood)
           else
-            @think("I'm hungry but there's no food!", -10)
+            @think("I'm hungry but there's no food!", -3)
             false
         )
 
@@ -326,7 +332,7 @@ define [
             @think("I'm tired! Time to sleep!")
             new Task.GoHomeAndSleep(this, closestHomeWithFreeBed)
           else
-            @think("I'm tired but there's no place to sleep!", -10)
+            @think("I'm tired but there's no place to sleep!", -1)
         )
 
       tasks
@@ -394,16 +400,16 @@ define [
         @affect -= 1
 
       if tiredBefore < 500 and @tired > 500
-        @think("I'm getting really exhausted!", -30)
+        @think("I'm getting really exhausted!", -500)
 
       if tiredBefore < 800 and @tired > 800
-        @think("I'm going to die of exhaustion!!!", -100)
+        @think("I'm going to die of exhaustion!!!", -2000)
 
       if hungerBefore < 500 and @hunger > 500
-        @think("I'm getting really hungry!", -30)
+        @think("I'm getting really hungry!", -500)
 
       if hungerBefore < 800 and @hunger > 800
-        @think("I'm going to die of hunger!!!", -100)
+        @think("I'm going to die of hunger!!!", -2000)
 
 
       return timeTaken
