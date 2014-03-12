@@ -53,7 +53,7 @@ define [
     constructor: (@human, @pt, @subject) ->
       super(@human)
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      @pt = @human.world.map.closestAvailableSpot(@human, _.pick(@pt, "x", "y"))
+      @pt = @human.world.map.closestWalkablePath(@human, _.pick(@pt, "x", "y"))
 
       # this should never happen
       throw "There is no place for you to go!" unless @pt?

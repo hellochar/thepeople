@@ -84,26 +84,42 @@ define [
         null
 
     # Assumes entity is in world
-    closestAvailableSpot: (entity, wantedPt) ->
-      # keep a fringe of possible spots that you haven't checked yet; this fringe
-      # is sorted by distance so the closest ones will always be popped off first (it's a queue)
-      #
-      queue = [wantedPt]
+    # Returns the closest location to wantedPt that entity can walk to
+    closestWalkablePath: (entity, wantedPt) ->
+      # "wave expansion" outward from wantedPt, check the perimeter of the wave
+      # at every iteration for the closest spot you can walk to
+      # if no walkable spots make the wave bigger
+      perimeter = [wantedPt]
       visited = {} # keys are JSON.stringify({x, y}) objects
-      while not _.isEmpty(queue)
-        pt = queue.shift()
+      while not _.isEmpty(perimeter)
+        # array of [pt, array of actions]
+        paths = []
 
-        continue if visited[JSON.stringify(pt)]
-        visited[JSON.stringify(pt)] = true
+        for pt in perimeter
+          try
+            if entity.canOccupy(pt.x, pt.y)
+              paths.push([pt, Search.findPathTo(entity, pt)])
+          catch err
+            if err is Search.NoSolution
+              "no-op"
+            else
+              throw err
 
-        if entity.canOccupy(pt.x, pt.y)
-          return pt
+        if not _.isEmpty(paths)
+          shortestPath = _.min(paths, (path) -> path[1].length)
+          return shortestPath[0]
         else
-          for action in Action.Directionals
-            nextPt = {x: pt.x + action.offset.x, y: pt.y + action.offset.y}
-            queue.push(nextPt)
+          newPerimeter = []
+          visited[JSON.stringify(pt)] = true for pt in perimeter
+          for pt in perimeter
+            for action in Action.Directionals
+              nextPt = {x: pt.x + action.offset.x, y: pt.y + action.offset.y}
+              continue if visited[JSON.stringify(nextPt)]
+              newPerimeter.push(nextPt)
+          perimeter = newPerimeter
 
-      return null
+      # Technically this should never happen since the search should eventually reach the point the entity's at now
+      throw "oh god it happened"
 
     notifyLeaving: (entity) =>
       for pt in entity.getHitbox().allPoints()
