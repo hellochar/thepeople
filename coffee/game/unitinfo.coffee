@@ -26,6 +26,23 @@ define [
     return seconds + " second" + numberEnding(seconds)  if seconds
     "less then a second" #'just now' //or other string you like;
 
+  renderThought = (unit, thought) =>
+    color = switch
+      when thought.affect < -50 then "red"
+      when thought.affect < 0 then "orange"
+      when thought.affect is 0 then "black"
+      when thought.affect > 0 then "green"
+      else "black"
+
+    ageString = millisecondsToStr((unit.age() - thought.age) * 1000 / 20)
+
+    el = $("<li>")
+      .addClass("thought")
+      .css( color: color )
+      .text("#{ageString} ago - #{ thought.thought } (#{thought.affect})")
+
+    el
+
   class SingleUnitInfo
     constructor: (@unit) ->
 
@@ -41,9 +58,7 @@ define [
             <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
             <h3> Thoughts </h3>
-            <% _.each(thoughts, function(thought) { %>
-              <li class="color: <%= thought.color %>"> <%= thought.ageString %> ago - <%= thought.thought %> </li>
-            <% }); %>
+            <div class="thoughts"></div>
           </div>
         </div>
         """
@@ -90,6 +105,9 @@ define [
         width: @unit.tired / 1000 * 100 + "%"
         "background-color": tiredColor
       )
+
+      for thought in @unit.getRecentThoughts()
+        $html.find(".thoughts").append(renderThought(@unit, thought))
 
       # sourceLocation = @renderer.renderPosition(unit.x, unit.y)
       # canvasCq = cq(html.find(".view")[0])

@@ -320,7 +320,8 @@ define [
 
       if @tired > 300
         tasks.push( () =>
-          closestHomeWithFreeBed = houses = _.filter(@getKnownEntities(), (b) => b instanceof House and not _.isEmpty(b.getFreeBeds(this)))[0]
+          houses = _.filter(@getKnownEntities(), (b) => b instanceof House and not _.isEmpty(b.getFreeBeds(this)))
+          closestHomeWithFreeBed = if houses then _.min(houses, @distanceTo) else null
           if closestHomeWithFreeBed
             @think("I'm tired! Time to sleep!")
             new Task.GoHomeAndSleep(this, closestHomeWithFreeBed)
