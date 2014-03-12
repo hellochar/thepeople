@@ -125,8 +125,9 @@ define [
 
 
   class UnitInfoHandler
-    constructor: (@world, @$el, @renderer) ->
+    constructor: (@world, @renderer) ->
       @views = []
+      @$el = $("<div>")
       @world.selection.on("add", @addView)
 
       @addView(unit) for unit in @world.selection.units
