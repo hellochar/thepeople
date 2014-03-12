@@ -59,6 +59,7 @@ define [
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
             <p> Tired: <span class="tired indicator-bar"><span></span></span> </p>
             <p> Happiness: <span class="affect indicator-bar"><span></span></span> </p>
+            <p> Safety: <%= safety %> </p>
 
             <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
 
@@ -76,6 +77,7 @@ define [
           ageString: millisecondsToStr(@human.age() * (1000 / 20))
           name: @human.name
           affect: @human.affect
+          safety: @human.getSafetyLevel()
           currentTaskString: @human.currentTask?.toString() || "Nothing"
           thoughts: _.map(@human.getRecentThoughts(), (thought) =>
             thought: thought.thought

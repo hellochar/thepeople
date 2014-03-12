@@ -120,7 +120,7 @@ define [
   ]
 
   class Entity extends Drawable
-    constructor: (@x, @y, @vision, @properties) ->
+    constructor: (@x, @y, @vision, @properties = {}) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
       # array of {age: age(), thought: string}
@@ -169,9 +169,6 @@ define [
 
     distanceTo: (cell) =>
       Math.abs(@x - cell.x) + Math.abs(@y - cell.y)
-
-    findTilesWithin: (manhattanDist) =>
-      _.flatten((cell.tileInstance for cell in row when @distanceTo(cell.tileInstance) <= manhattanDist) for row in @world.map.cells)
 
     # Return Entities with distance <= manhattanDist (compares Entity locations, no hitbox information)
     findEntitiesWithin: (manhattanDist) =>
@@ -299,6 +296,12 @@ define [
     getKnownEntities: () =>
       @vision.getKnownEntities()
 
+    getSafetyLevel: () =>
+      # How safe this person feels; 1+ is safe, 0 is some danger, -1 is unsafe
+      # Safety is correlated to being close to home (TODO: and by being near other people)
+      houseDistance = @distanceTo(@closestKnown(Entity.House))
+      1.2 - houseDistance / 20
+
     closestKnown: (entityType) =>
       entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
       if not _.isEmpty(entities)
@@ -324,12 +327,13 @@ define [
       if @tired > 300
         tasks.push( () =>
           houses = _.filter(@getKnownEntities(), (b) => b instanceof House and not _.isEmpty(b.getFreeBeds(this)))
-          closestHomeWithFreeBed = if houses then _.min(houses, @distanceTo) else null
+          closestHomeWithFreeBed = if not _.isEmpty(houses) then _.min(houses, @distanceTo) else null
           if closestHomeWithFreeBed
             @think("I'm tired! Time to sleep!")
             new Task.GoHomeAndSleep(this, closestHomeWithFreeBed)
           else
             @think("I'm tired but there's no place to sleep!", -1)
+            new Task.Sleep(this)
         )
 
       tasks

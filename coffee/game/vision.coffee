@@ -1,6 +1,7 @@
 define [
   'underscore'
-], (_) ->
+  'rectangle'
+], (_, Rectangle) ->
   class Vision
     constructor: (@world) ->
       @emitters = []
@@ -44,18 +45,22 @@ define [
       )
 
 
-    # Emitters must have a findTilesWithin, findEntitiesWithin and sightRange
+    # Emitters must have a location, findEntitiesWithin and sightRange
     addVisibilityEmitter: (emitter) =>
       @emitters.push(emitter)
 
     removeVisibilityEmitter: (emitter) =>
       @emitters = _.without(@emitters, emitter)
 
+    getTilesSeenBy: (emitter) =>
+      emissionRect = new Rectangle(emitter.x - emitter.sightRange, emitter.y - emitter.sightRange, emitter.sightRange * 2 + 1, emitter.sightRange * 2 + 1)
+      @world.map.getCell(pt.x, pt.y).tileInstance for pt in emissionRect.allPoints() when emitter.distanceTo(pt) <= emitter.sightRange
+
     getVisibleTiles: () =>
       recomputeVisibleTiles = () =>
         allTiles =
           for emitter in @emitters
-            emitter.findTilesWithin(emitter.sightRange)
+            @getTilesSeenBy(emitter)
         _.union(allTiles...)
       if not @visibleTilesCache
         @visibleTilesCache = recomputeVisibleTiles()

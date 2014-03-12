@@ -16,7 +16,6 @@ define [
       $("#sidebar").append(@unitinfo.$el)
 
     lookAt: (cellPt) =>
-      debugger
       currentCellPosition = @cellPosition(@cq.canvas.width/2, @cq.canvas.height/2, false)
       cellOffset =
         x: cellPt.x - currentCellPosition.x
@@ -90,13 +89,19 @@ define [
 
       mapping = {
         a: () => @camera.x -= 1 * delta / 32
+        left: () => @camera.x -= 1 * delta / 32
+
         d: () => @camera.x += 1 * delta / 32
+        right: () => @camera.x += 1 * delta / 32
+
         w: () => @camera.y -= 1 * delta / 32
+        up: () => @camera.y -= 1 * delta / 32
+
         s: () => @camera.y += 1 * delta / 32
+        down: () => @camera.y += 1 * delta / 32
       }
 
       for key, fn of mapping
-        debugger if keys["left"]
         fn() if keys[key]
 
       cq.clear("black")

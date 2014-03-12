@@ -86,7 +86,7 @@ require [
       y = world.height / 3 + (1/3) * Math.random() * world.height | 0
       createWall(x, y)
     # Create 5 oases
-    for i in [0...15]
+    for i in [0...150]
       x = Math.random() * world.width | 0
       y = Math.random() * world.height | 0
       createOasis(x, y)
