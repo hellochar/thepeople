@@ -134,10 +134,6 @@ define [
       # Eating 300 food gives 150 affect
       @affect = 0
 
-    pt: () =>
-      x: @x
-      y: @y
-
     # Only move Entities through this method
     move: (offset) =>
       @setLocation(@x + offset.x, @y + offset.y)

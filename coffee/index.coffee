@@ -45,7 +45,7 @@ require [
 
   setupWorld = () ->
     world = new World(100, 100)
-    world.addEntity(new Entity.House(10, 10))
+    world.addEntity(new Entity.House(10, 10, world.playerVision))
     starter = world.addEntity(new Entity.Human(10, 11, world.playerVision))
     world.selection.add(starter)
 

@@ -14,6 +14,10 @@ define [
     constructor: (@x, @y) ->
       @timeCreated = Date.now()
 
+    pt: () =>
+      x: @x
+      y: @y
+
     animationMillis: () => Date.now() - @timeCreated
 
     # {

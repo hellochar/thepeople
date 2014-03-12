@@ -43,13 +43,18 @@ define [
 
     el
 
-  class SingleUnitInfo
+  class EntityInfo
     constructor: (@unit) ->
+
+
+  class HumanInfo extends EntityInfo
+    constructor: (@human) ->
+      super(@human)
 
     template: _.template(
         """
-        <div class="individual unitinfo">
-          <h2> <%= name %> <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
+        <div class="human info">
+          <h2> <%= name %> <span class="alive-for"> alive for <%= ageString %> </span> </h2>
           <div>
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
             <p> Tired: <span class="tired indicator-bar"><span></span></span> </p>
@@ -65,19 +70,16 @@ define [
     )
 
     render: () =>
-      # TODO move this template into its own file, _.template() it and require it
       # TODO only update the part of the DOM you need to change
-      # TODO better hunger and tired sliders
-      # TODO general health/happiness for units
       $html = $(@template(
           # 20 frames per second -> 1000 / 20 milliseconds per frame
-          ageString: millisecondsToStr(@unit.age() * (1000 / 20))
-          name: @unit.name
-          affect: @unit.affect
-          currentTaskString: @unit.currentTask?.toString() || "Nothing"
-          thoughts: _.map(@unit.getRecentThoughts(), (thought) =>
+          ageString: millisecondsToStr(@human.age() * (1000 / 20))
+          name: @human.name
+          affect: @human.affect
+          currentTaskString: @human.currentTask?.toString() || "Nothing"
+          thoughts: _.map(@human.getRecentThoughts(), (thought) =>
             thought: thought.thought
-            ageString: millisecondsToStr((@unit.age() - thought.age) * 1000 / 20)
+            ageString: millisecondsToStr((@human.age() - thought.age) * 1000 / 20)
             color: switch
               when thought.affect < -50 then "red"
               when thought.affect < 0 then "orange"
@@ -87,55 +89,62 @@ define [
           )
       ))
       hungerColor = switch
-        when @unit.hunger < 300 then "lightgreen"
-        when @unit.hunger < 600 then "yellow"
-        when @unit.hunger < 800 then "orange"
+        when @human.hunger < 300 then "lightgreen"
+        when @human.hunger < 600 then "yellow"
+        when @human.hunger < 800 then "orange"
         else "red"
       $html.find(".hunger.indicator-bar span").css(
-        width: @unit.hunger / 1000 * 100 + "%"
+        width: @human.hunger / 1000 * 100 + "%"
         "background-color": hungerColor
       )
 
       tiredColor = switch
-        when @unit.tired < 300 then "lightgreen"
-        when @unit.tired < 600 then "yellow"
-        when @unit.tired < 800 then "orange"
+        when @human.tired < 300 then "lightgreen"
+        when @human.tired < 600 then "yellow"
+        when @human.tired < 800 then "orange"
         else "red"
       $html.find(".tired.indicator-bar span").css(
-        width: @unit.tired / 1000 * 100 + "%"
+        width: @human.tired / 1000 * 100 + "%"
         "background-color": tiredColor
       )
 
       happinessColor = switch
-        when @unit.affect < -4000 then "red"
-        when @unit.affect < -2000 then "orange"
-        when @unit.affect < 0 then "yellow"
-        when @unit.affect < 2000 then "lightgreen"
-        when @unit.affect < 4000 then "green"
+        when @human.affect < -4000 then "red"
+        when @human.affect < -2000 then "orange"
+        when @human.affect < 0 then "yellow"
+        when @human.affect < 2000 then "lightgreen"
+        when @human.affect < 4000 then "green"
         else "darkgreen"
-      # debugger
       $html.find(".affect.indicator-bar span").css(
-        width: (@unit.affect + 5000) / 10000 * 100 + "%"
+        width: (@human.affect + 5000) / 10000 * 100 + "%"
         "background-color": happinessColor
       )
 
-      for thought in @unit.getRecentThoughts()
-        $html.find(".thoughts").append(renderThought(@unit, thought))
-
-      # sourceLocation = @renderer.renderPosition(unit.x, unit.y)
-      # canvasCq = cq(html.find(".view")[0])
-      # canvasCq.drawImage(
-      #   @renderer.cq.canvas,
-      #   sourceLocation.x - @renderer.CELL_PIXEL_SIZE,
-      #   sourceLocation.y - @renderer.CELL_PIXEL_SIZE,
-      #   @renderer.CELL_PIXEL_SIZE * 3,
-      #   @renderer.CELL_PIXEL_SIZE * 3,
-      #   0, 0,
-      #   canvasCq.canvas.width, canvasCq.canvas.height
-      # )
+      for thought in @human.getRecentThoughts()
+        $html.find(".thoughts").append(renderThought(@human, thought))
 
       $html
 
+
+  class HouseInfo extends EntityInfo
+    constructor: (@house) ->
+      super(@house)
+
+    template: _.template(
+      """
+      <div>
+        <h2> House <span style="font-size: 0.5em"> alive for <%= ageString %> </span> </h2>
+        <p class="flavor"> A home, a place to sleep, a place to gather.</p>
+        <p class="bed-status"></p>
+      </div>
+      """
+    )
+
+    render: () =>
+      $html = $(@template(
+        ageString: millisecondsToStr(@house.age() * (1000 / 20))
+      ))
+      $html
 
   class UnitInfoHandler
     constructor: (@world, @renderer) ->
@@ -149,9 +158,17 @@ define [
         @views = _.reject(@views, (view) -> view.unit is unit)
       )
 
+    viewConstructorFor: (unit) =>
+      {
+        Human: HumanInfo
+        House: HouseInfo
+      }[unit.constructor.name]
+
+
     addView: (unit) =>
-      view = new SingleUnitInfo(unit)
-      @views.push(view)
+      if @viewConstructorFor(unit)
+        view = new (@viewConstructorFor(unit))(unit)
+        @views.push(view)
 
     render: () =>
       @$el.empty()
