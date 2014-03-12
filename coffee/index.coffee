@@ -62,13 +62,13 @@ require [
       # Put some food near the center
       for z in [0...Math.random() * 5 | 0 + 3]
         food = new Entity.Food(x + (Math.random() - 0.5) * radius / 3 | 0, y + (Math.random() - 0.5) * radius / 3 | 0)
-        world.addEntity(food) if world.map.hasRoomFor(food)
+        world.addEntity(food)
 
       # put a few trees; about one per 12 squares
       for z in [0...radius * radius * Math.PI / 12]
         # Only put trees in the middle half of the circle ( the Math.random() - .5 goes from -1/2 to 1/2 )
         tree = new Entity.Tree(x + (Math.random() - 0.5) * radius | 0, y + (Math.random() - 0.5) * radius | 0)
-        world.addEntity(tree) if world.map.hasRoomFor(tree)
+        world.addEntity(tree)
 
     createWall = (x, y) ->
       radius = Math.random() * 10 + 15 | 0

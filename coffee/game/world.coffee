@@ -22,7 +22,10 @@ define [
       @selection = new Selection([], @playerVision, this)
 
     addEntity: (entity) =>
-      console.log("#{entity} cannot be put there!") unless @map.hasRoomFor(entity)
+      newLoc = @map.closestAvailableSpot(entity)
+      entity.x = newLoc.x
+      entity.y = newLoc.y
+      console.log("#{entity} still cannot be put there!") unless @map.hasRoomFor(entity)
       entity.world = this
       entity.birth = @age
       @entities.push(entity)
