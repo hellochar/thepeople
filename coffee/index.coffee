@@ -6,6 +6,7 @@ require [
   'canvasquery'
   'canvasquery.framework'
   'construct'
+  'assets'
   'rectangle'
   'game/action'
   'search'
@@ -21,7 +22,7 @@ require [
   'game/tile'
   'game/vision'
   'game/world'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, EntityQueue, Drawable, Minimap, Selection, Renderer, Task, Tile, Vision, World) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Assets, Rectangle, Action, Search, Map, ClickBehavior, Entity, EntityQueue, Drawable, Minimap, Selection, Renderer, Task, Tile, Vision, World) ->
 
   # TODO move the Overlay from twoguns over
   # or better yet use a modal?
@@ -199,6 +200,8 @@ require [
       delete @keys[key]
   }
 
-  $(() ->
-    framework.setup()
+  Assets.whenLoaded(() ->
+    $(() ->
+      framework.setup()
+    )
   )

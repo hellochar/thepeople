@@ -1,14 +1,9 @@
 define [
-], () ->
+  'assets'
+], (Assets) ->
   class Spritesheets
-    @mapping: {}
-
     @get: (name) ->
-      if not @mapping[name]
-        s = new Image()
-        s.src = "/images/spritesheets/#{name}.png"
-        @mapping[name] = s
-      @mapping[name]
+      Assets.get("/images/spritesheets/#{name}.png")
 
   class Drawable
     constructor: (@x, @y) ->
