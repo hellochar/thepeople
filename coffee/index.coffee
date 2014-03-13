@@ -14,13 +14,14 @@ require [
   'game/entity'
   'game/entityqueue'
   'game/drawable'
+  'game/minimap'
   'game/selection'
   'game/renderer'
   'game/task'
   'game/tile'
   'game/vision'
   'game/world'
-], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, EntityQueue, Drawable, Selection, Renderer, Task, Tile, Vision, World) ->
+], ($, _, Backbone, Stats, cq, eveline, construct, Rectangle, Action, Search, Map, ClickBehavior, Entity, EntityQueue, Drawable, Minimap, Selection, Renderer, Task, Tile, Vision, World) ->
 
   # TODO move the Overlay from twoguns over
   # or better yet use a modal?
@@ -44,7 +45,7 @@ require [
     getOverlay().text(string)
 
   setupWorld = () ->
-    world = new World(400, 400)
+    world = new World(100, 100)
 
     createOasis = (x, y) ->
       # put some nice grass around the area
@@ -81,12 +82,12 @@ require [
         world.map.setTile(x + dx + 1, y + dy, Tile.Wall)
 
     # put half-circle walls everywhere
-    for i in [0...15]
+    for i in [0...10]
       x = world.width / 3 + (1/3) * Math.random() * world.width | 0
       y = world.height / 3 + (1/3) * Math.random() * world.height | 0
       createWall(x, y)
     # Create 5 oases
-    for i in [0...150]
+    for i in [0...50]
       x = Math.random() * world.width | 0
       y = Math.random() * world.height | 0
       createOasis(x, y)
@@ -135,6 +136,9 @@ require [
 
       @renderer = new Renderer(@world, @cq, this)
       @renderer.lookAt(@world.selection.units[0])
+
+      @minimap = new Minimap(@world)
+      @minimap.cq.appendTo(".minimap-container")
 
       @clickbehavior = new ClickBehavior.Default(@world, @keys)
 

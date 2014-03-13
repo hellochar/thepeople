@@ -40,9 +40,8 @@ define [
     # or an array of those objects
     spriteLocation: () => throw "not implemented"
 
-    draw: (renderer) =>
-      cq = renderer.cq
-      CELL_PIXEL_SIZE = renderer.CELL_PIXEL_SIZE
+    # returns an array of {spritesheet, sx, sy, width, height, rotation} to be used with drawImage
+    getSpriteTemplates: () =>
       sprites = @spriteLocation()
       if not _.isArray(sprites)
         sprites = [sprites]
@@ -60,6 +59,24 @@ define [
         spritesheet = Spritesheets.get(spritesheetName)
         tileSize = 32
         rotation = (-sprite.rotation || 0) * Math.PI / 180
+
+        spritesheet: spritesheet
+        sx: sx
+        sy: sy
+        dx: dx
+        dy: dy
+        width: width
+        height: height
+        tileSize: tileSize
+        rotation: rotation
+
+
+    draw: (renderer) =>
+      cq = renderer.cq
+      CELL_PIXEL_SIZE = renderer.CELL_PIXEL_SIZE
+
+      for sprite in @getSpriteTemplates()
+        {sx: sx, sy: sy, width: width, height: height, dx: dx, dy: dy, spritesheet: spritesheet, tileSize: tileSize, rotation: rotation} = sprite
 
         if rotation != 0
           cq.save()

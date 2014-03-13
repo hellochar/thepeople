@@ -4,8 +4,12 @@ define [
 ], (Backbone, Drawable) ->
   # A cell should implement the Drawable interface
   #   which comprises only the spriteLocation method
-  class Tile
+  class Tile extends Drawable
+
+    @colliding: false
+
     constructor: (@x, @y) ->
+      super(@x, @y)
       @visionInfo = 0 # 0 == unknown, 1 = remembered, 2 = visible
 
     recompute: () =>
@@ -17,13 +21,8 @@ define [
         @sprite = @getSpriteLocation()
       @sprite
 
-    @colliding: false
-
     getSpriteLocation: () ->
       throw "not implemented"
-
-    draw: (renderer) =>
-      Drawable::draw.call(this, renderer)
 
   class Grass extends Tile
     getSpriteLocation: () -> { x: 21, y: 4 }

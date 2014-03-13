@@ -1,9 +1,12 @@
 define [
   'underscore'
   'rectangle'
-], (_, Rectangle) ->
+  'backbone'
+], (_, Rectangle, Backbone) ->
   class Vision
     constructor: (@world) ->
+      _.extend(this, Backbone.Events)
+
       @emitters = []
 
       @visibleTilesCache = null
@@ -14,19 +17,20 @@ define [
 
       lastVisibleTiles = []
       lastVisibleEntities = []
-      $(@world).on("prestep", () =>
-        lastVisibleTiles = @getVisibleTiles()
-        lastVisibleEntities = @getVisibleEntities()
-      )
 
       $(@world).on("poststep", () =>
         @visibleTilesCache = null
         @visibleEntitiesCache = null
+        newlyVisibleTiles = _.difference(@getVisibleTiles(), lastVisibleTiles)
+        newlyRememberedTiles = _.difference(lastVisibleTiles, @getVisibleTiles())
+
         # update the vision of tiles
         # 1. visible tiles are just the visible tiles
         # 2. remembered tiles are visible last frame but not visible now
-        tile.visionInfo = 2 for tile in @getVisibleTiles()
-        tile.visionInfo = 1 for tile in _.difference(lastVisibleTiles, @getVisibleTiles())
+        tile.visionInfo = 2 for tile in newlyVisibleTiles
+        tile.visionInfo = 1 for tile in newlyRememberedTiles
+
+        @trigger("visionupdate", newlyVisibleTiles, newlyRememberedTiles)
 
         # to update seenEntities
         # 1. remove entities remembered last frame that *should* be visible now but aren't
@@ -42,6 +46,9 @@ define [
         # O( # of remembered entities ) <-- this is better but could be bad
         @rememberedEntities = _.difference(@rememberedEntities, @getVisibleEntities())
         @rememberedEntities = @rememberedEntities.concat(_.difference(lastVisibleEntities, @getVisibleEntities()))
+
+        lastVisibleTiles = @getVisibleTiles()
+        lastVisibleEntities = @getVisibleEntities()
       )
 
 
