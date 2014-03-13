@@ -6,20 +6,15 @@ define [
 
       @tileCq = cq(@cq.canvas.width, @cq.canvas.height)
       @tileCq.clear("black")
-      @tileCq.appendTo("body")
 
       @vision.on("visionupdate", (newlyVisibleTiles, newlyRememberedTiles) =>
-        console.log("drawing #{newlyVisibleTiles.length} tiles!") if newlyVisibleTiles.length
         @drawTile(tile, @tileCq) for tile in newlyVisibleTiles
-        @drawTile(tile, @tileCq) for tile in newlyRememberedTiles
+        @drawTile(tile, @tileCq, true) for tile in newlyRememberedTiles
       )
 
       $(@world).on("poststep", @render)
 
-    # darkenTile: (tile) =>
-
-
-    drawTile: (tile, cq) =>
+    drawTile: (tile, cq, darkened = false) =>
       for sprite in tile.getSpriteTemplates()
         cq.drawImage(sprite.spritesheet,
           sprite.sx * sprite.tileSize,
@@ -31,6 +26,14 @@ define [
           sprite.width,
           sprite.height
         )
+        if darkened
+          cq.fillStyle("rgba(0, 0, 0, 0.5)").fillRect(
+            (tile.x + sprite.dx),
+            (tile.y + sprite.dy),
+            sprite.width,
+            sprite.height
+          )
+
 
     render: () =>
       @cq.clear("black")

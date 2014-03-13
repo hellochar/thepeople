@@ -49,20 +49,57 @@ define [
     toString: () => @subtasks.join(", and then ")
 
   class WalkNear extends Task
+    lineRasterize = (start, end) ->
+      #create a list to store all of the line segment's points in
+      pointArray = []
+      #set this function's variables based on the class's starting and ending points
+      x0 = start.x
+      y0 = start.y
+      x1 = end.x
+      y1 = end.y
+
+      #define vector differences and other variables required for Bresenham's Algorithm
+      dx = Math.abs(x1 - x0)
+      dy = Math.abs(y1 - y0)
+      sx = (if (x0 & x1) then 1 else -1) #step x
+      sy = (if (y0 & y1) then 1 else -1) #step y
+      err = dx - dy #get the initial error value
+      #set the first point in the array
+      pointArray.push {x: x0, y: y0}
+
+      #Main processing loop
+      until ((x0 is x1) and (y0 is y1))
+        e2 = err * 2 #hold the error value
+        #use the error value to determine if the point should be rounded up or down
+        if e2 >= -dy
+          err -= dy
+          x0 += sx
+        if e2 < dx
+          err += dx
+          y0 += sy
+
+        #add the new point to the array
+        pointArray.push {x: x0, y: y0}
+      pointArray
 
     constructor: (@human, @pt, @subject) ->
       super(@human)
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
-      @pt = @human.world.map.closestWalkablePoint(@human, _.pick(@pt, "x", "y"))
+      walkablePt = @human.world.map.closestWalkablePoint(@human, _.pick(@pt, "x", "y"))
+      if walkablePt
+        @pt = walkablePt
 
-      # this should never happen
-      throw "There is no place for you to go!" unless @pt?
-
-      try
-        @actions = Search.findPathTo(@human, @pt)
-      catch
-        console.log("no path!")
-        @actions = []
+        try
+          @actions = Search.findPathTo(@human, @pt)
+        catch err
+          if err is Search.NoSolution
+            console.log("no path!")
+            @actions = []
+          else
+            throw err
+      else
+        @actions = Search.getActionsFromPoints(lineRasterize(@human, @pt))
+        # Just do a dumb greedy "walk in the general direction"
 
     toString: () => if @subject then "Walking to #{@subject}" else "Walking"
 

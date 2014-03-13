@@ -61,7 +61,7 @@ define [
 
     getTilesSeenBy: (emitter) =>
       emissionRect = new Rectangle(emitter.x - emitter.sightRange, emitter.y - emitter.sightRange, emitter.sightRange * 2 + 1, emitter.sightRange * 2 + 1)
-      @world.map.getCell(pt.x, pt.y).tileInstance for pt in emissionRect.allPoints() when emitter.distanceTo(pt) <= emitter.sightRange
+      @world.map.getCell(pt.x, pt.y).tileInstance for pt in emissionRect.allPoints() when emitter.distanceTo(pt) <= emitter.sightRange and @world.map.withinMap(pt.x, pt.y)
 
     getVisibleTiles: () =>
       recomputeVisibleTiles = () =>

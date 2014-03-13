@@ -107,14 +107,14 @@ define [
       return null
 
     # Assumes entity is in world
-    # Returns the closest location to wantedPt that entity can walk to
-    closestWalkablePoint: (entity, wantedPt) ->
+    # Returns the closest location to wantedPt that entity can walk to, within maxDepth distance to wantedPt
+    closestWalkablePoint: (entity, wantedPt, maxDepth = 5) ->
       # "wave expansion" outward from wantedPt, check the perimeter of the wave
       # at every iteration for the closest spot you can walk to
       # if no walkable spots make the wave bigger
       perimeter = [wantedPt]
       visited = {} # keys are JSON.stringify({x, y}) objects
-      while not _.isEmpty(perimeter)
+      while not _.isEmpty(perimeter) and maxDepth > 0
         # array of [pt, array of actions]
         paths = []
 
@@ -140,9 +140,10 @@ define [
               continue if visited[JSON.stringify(nextPt)]
               newPerimeter.push(nextPt)
           perimeter = newPerimeter
+          maxDepth -= 1
 
-      # Technically this should never happen since the search should eventually reach the point the entity's at now
-      throw "oh god it happened"
+      # depth == 0 OR perimeter is empty, but that shouldn't happen since the search should eventually reach the point the entity's at now
+      return null
 
     notifyLeaving: (entity) =>
       for pt in entity.getHitbox().allPoints()

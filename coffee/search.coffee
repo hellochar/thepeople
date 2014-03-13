@@ -64,13 +64,20 @@ define [
     # in the future make him walk as close as possible
     throw NoSolution if _.isEmpty(states)
 
+    getActionsFromPoints(states)
 
+  # points: [ {x, y} or [x, y] ]
+  getActionsFromPoints = (points) ->
     findActionFor = (from, to) ->
-      offset = {x: to[0] - from[0], y: to[1] - from[1]}
+      offset =
+        if _.isArray(from)
+          {x: to[0] - from[0], y: to[1] - from[1]}
+        else if _.isObject(from)
+          {x: to.x - from.x, y: to.y - from.y}
       _.find(Action.Directionals, (direction) -> _.isEqual(direction.offset, offset))
 
-    for i in [0...states.length - 1]
-      action = findActionFor( states[i], states[i + 1] )
+    for i in [0...points.length - 1]
+      action = findActionFor( points[i], points[i + 1] )
       debugger if not action
       action
 
@@ -78,6 +85,7 @@ define [
   Search = {
     bfs: bfs
     findPathTo: findPathTo
+    getActionsFromPoints: getActionsFromPoints
     NoSolution: NoSolution
   }
 
