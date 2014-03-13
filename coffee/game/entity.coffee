@@ -160,7 +160,7 @@ define [
 
     # Get all thoughts in the past 100 steps (about 10 seconds), limited to 20
     getRecentThoughts: () =>
-      _.filter(@thoughts, (thought) => @age() - thought.age < 200)[0...20]
+      _.filter(@thoughts, (thought) => @age() - thought.age < 10)[0...20]
 
     # Returns the number of frames this entity has been alive for
     age: () => @world.age - @birth
@@ -212,7 +212,7 @@ define [
         "[#{@constructor.name}, not in world, (#{@x}, #{@y})]"
 
     # The step function gets called when it is this entity's turn to
-    # move forward. Return the time it takes to "step" (by default 1 frame)
+    # move forward. Return the time (in real seconds) it takes to "step"
     # step: () => 1
 
   class Tree extends Entity
@@ -392,7 +392,7 @@ define [
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
-      timeTaken = if @tired > 500 then 1 + (@tired - 500) / 125 else 1
+      timeTaken = .15 * (if @tired > 500 then 1 + (@tired - 500) / 125 else 1)
 
       @hunger += timeTaken * .4
       @tired += timeTaken * .2

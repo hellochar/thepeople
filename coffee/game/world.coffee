@@ -8,7 +8,7 @@ define [
 
   class World
     constructor: (@width, @height) ->
-      # Age is the number of frames this World has been stepped for
+      # Age is the number of seconds this World has been stepped for
       @age = 0
       @map = new Map(@)
 
@@ -59,8 +59,8 @@ define [
 
       return null
 
-    # Step the entire world by duration frames
-    stepAll: (duration = 1.0) =>
+    # Step the entire world by duration seconds
+    stepAll: (duration) =>
       $(this).trigger("prestep")
 
       now = @age

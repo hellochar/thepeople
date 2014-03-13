@@ -147,9 +147,9 @@ require [
 
     onstep: (delta, time) ->
       if @world.playerVision.isSurviving()
-        @world.stepAll()
+        @world.stepAll(delta / 1000)
         if not @world.playerVision.isSurviving()
-          overlay("You died! You survived for #{@world.age} turns. Your performance is: ")
+          overlay("You died! You survived for #{@world.age} seconds. Your performance is: ")
 
     stepRate: 20
 

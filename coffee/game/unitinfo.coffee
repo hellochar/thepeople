@@ -4,7 +4,8 @@ define [
   'canvasquery'
 ], ($, _, cq) ->
 
-  millisecondsToStr = (milliseconds) ->
+  secondsToStr = (secondsInput) ->
+    milliseconds = secondsInput * 1000
     
     # TIP: to find current time in milliseconds, use:
     # var  current_time_milliseconds = new Date().getTime();
@@ -34,7 +35,7 @@ define [
       when thought.affect > 0 then "green"
       else "black"
 
-    ageString = millisecondsToStr((unit.age() - thought.age) * 1000 / 20)
+    ageString = secondsToStr((unit.age() - thought.age))
 
     el = $("<li>")
       .addClass("thought")
@@ -74,14 +75,14 @@ define [
       # TODO only update the part of the DOM you need to change
       $html = $(@template(
           # 20 frames per second -> 1000 / 20 milliseconds per frame
-          ageString: millisecondsToStr(@human.age() * (1000 / 20))
+          ageString: secondsToStr(@human.age())
           name: @human.name
           affect: @human.affect
           safety: @human.getSafetyLevel()
           currentTaskString: @human.currentTask?.toString() || "Nothing"
           thoughts: _.map(@human.getRecentThoughts(), (thought) =>
             thought: thought.thought
-            ageString: millisecondsToStr((@human.age() - thought.age) * 1000 / 20)
+            ageString: secondsToStr(@human.age() - thought.age)
             color: switch
               when thought.affect < -50 then "red"
               when thought.affect < 0 then "orange"
@@ -144,7 +145,7 @@ define [
 
     render: () =>
       $html = $(@template(
-        ageString: millisecondsToStr(@house.age() * (1000 / 20))
+        ageString: secondsToStr(@house.age() * (1000 / 20))
       ))
       $html
 
