@@ -22,6 +22,7 @@ define [
         y: cellPt.y - currentCellPosition.y
       @camera.x += cellOffset.x
       @camera.y += cellOffset.y
+      @constrainCameraPosition()
 
 
     drawOccupied: (x, y) =>

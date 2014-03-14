@@ -25,7 +25,7 @@ var require = {
         },
         'canvasquery.framework': {
             deps: ['canvasquery'],
-            exports: 'CanvasQuery'
+            exports: ['cq', 'CanvasQuery']
         },
         "dat.gui": {
             exports: 'dat'

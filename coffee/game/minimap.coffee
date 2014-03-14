@@ -3,6 +3,19 @@ define [
   class Minimap
     constructor: (@world, @vision = @world.playerVision, @renderer) ->
       @cq = cq(@world.width, @world.height)
+      $canvas = $(@cq.canvas)
+
+      setViewportFromEvent = (evt) =>
+        @renderer.lookAt({x: evt.offsetX, y: evt.offsetY})
+
+      $canvas.on("mousedown", (evt) ->
+        setViewportFromEvent(evt)
+        $canvas.on("mousemove", setViewportFromEvent)
+      )
+      $canvas.on("mouseup", (evt) ->
+        setViewportFromEvent(evt)
+        $canvas.off("mousemove", setViewportFromEvent)
+      )
 
       @tileCq = cq(@cq.canvas.width, @cq.canvas.height)
       @tileCq.clear("black")

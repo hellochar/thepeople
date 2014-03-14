@@ -53,16 +53,16 @@ define [
       #create a list to store all of the line segment's points in
       pointArray = []
       #set this function's variables based on the class's starting and ending points
-      x0 = start.x
-      y0 = start.y
-      x1 = end.x
-      y1 = end.y
+      x0 = start.x | 0
+      y0 = start.y | 0
+      x1 = end.x | 0
+      y1 = end.y | 0
 
       #define vector differences and other variables required for Bresenham's Algorithm
       dx = Math.abs(x1 - x0)
       dy = Math.abs(y1 - y0)
-      sx = (if (x0 & x1) then 1 else -1) #step x
-      sy = (if (y0 & y1) then 1 else -1) #step y
+      sx = (if (x0 < x1) then 1 else -1) #step x
+      sy = (if (y0 < y1) then 1 else -1) #step y
       err = dx - dy #get the initial error value
       #set the first point in the array
       pointArray.push {x: x0, y: y0}
@@ -74,7 +74,7 @@ define [
         if e2 >= -dy
           err -= dy
           x0 += sx
-        if e2 < dx
+        else if e2 < dx
           err += dx
           y0 += sy
 
