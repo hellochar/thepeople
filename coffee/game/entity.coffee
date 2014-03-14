@@ -220,10 +220,10 @@ define [
       super(arguments...)
       @spriteLocation = ((pt) ->
         () ->
-          {x: pt.x, y: pt.y, dx: -1, dy: -1, width: 2, height: 2}
+          {x: pt.x, y: pt.y, dx: -1 + 0.5, dy: -1, width: 2, height: 2}
       )(_.sample([{x: 14, y: 13}, {x: 12, y: 14}]))
 
-    @hitbox: {x: -1, y: 0, width: 2, height: 1}
+    # @hitbox: {x: -1, y: 0, width: 2, height: 1}
 
   class House extends Entity
     spriteLocation: () => [
@@ -392,7 +392,7 @@ define [
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
-      timeTaken = .15 * (if @tired > 500 then 1 + (@tired - 500) / 125 else 1)
+      timeTaken = .08 * (if @tired > 500 then 1 + (@tired - 500) / 125 else 1)
 
       @hunger += timeTaken * .4
       @tired += timeTaken * .2

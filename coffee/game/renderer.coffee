@@ -82,6 +82,14 @@ define [
       @cq.font("normal #{FONT_SIZE}pt arial").fillStyle("black")
       @cq.fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, lineWidth) for line, idx in lines
 
+    constrainCameraPosition: () =>
+      # calculate the top-left corner if the camera was at the very bottom-right
+      xmax = @world.width - @cq.canvas.width / @CELL_PIXEL_SIZE
+      ymax = @world.height - @cq.canvas.height / @CELL_PIXEL_SIZE
+
+      constrain = (val, min, max) -> Math.min(Math.max(val, min), max)
+      @camera.x = constrain(@camera.x, 0, xmax)
+      @camera.y = constrain(@camera.y, 0, ymax)
 
     render: (delta, keys, mouseX, mouseY) =>
       cq = @cq
@@ -103,6 +111,8 @@ define [
 
       for key, fn of mapping
         fn() if keys[key]
+
+      @constrainCameraPosition()
 
       cq.clear("black")
       cq.save()
