@@ -48,6 +48,7 @@ define [
 
     toString: () => @subtasks.join(", and then ")
 
+  # Walk towards a
   class WalkNear extends Task
     lineRasterize = (start, end) ->
       #create a list to store all of the line segment's points in
@@ -85,6 +86,9 @@ define [
     constructor: (@human, @pt, @subject) ->
       super(@human)
       throw "Point is actually a #{@pt}" unless (_.isNumber(@pt.x) && _.isNumber(@pt.y))
+      @recomputePath()
+
+    recomputePath: () =>
       walkablePt = @human.world.map.closestWalkablePoint(@human, _.pick(@pt, "x", "y"))
       if walkablePt
         @pt = walkablePt
@@ -98,15 +102,18 @@ define [
           else
             throw err
       else
+        # Just do a dumb "walk in a straight line until you hit something"
+        # TODO find a better default
         @actions = Search.getActionsFromPoints(lineRasterize(@human, @pt))
-        # Just do a dumb greedy "walk in the general direction"
 
     toString: () => if @subject then "Walking to #{@subject}" else "Walking"
 
     isComplete: () => _.isEmpty(@actions)
 
     nextAction: () =>
-      return @actions.shift()
+      action = @actions.shift()
+      $(action).on("failed", @recomputePath)
+      return action
 
   class WalkUntilNextTo extends WalkNear
     # Assumes the entity doesn't move
@@ -190,6 +197,18 @@ define [
       super(@human, [new WalkNear(@human, sleepLoc, "home"), new Sleep(@human)])
 
 
+  class ChopTree extends Task
+    constructor: (@human, @tree) ->
+      throw "dead tree!" if @tree.isDead()
+      super(@human)
+
+    isComplete: () => @tree.isDead()
+    nextAction: () => new Action.Chop(@tree)
+
+  class WalkAndChopTree extends TaskList
+    constructor: (@human, @tree) ->
+      super(@human, [new WalkNear(@human, @tree.pt(), "tree"), new ChopTree(@human, @tree)])
+
   Task.CancelledException = CancelledException
   Task.TaskList = TaskList
   Task.WalkNear = WalkNear
@@ -200,5 +219,7 @@ define [
   Task.Sleep   = Sleep
   Task.Build   = Build
   Task.Construct = Construct
+  Task.ChopTree = ChopTree
+  Task.WalkAndChopTree = WalkAndChopTree
 
   Task

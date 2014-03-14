@@ -218,12 +218,19 @@ define [
   class Tree extends Entity
     constructor: () ->
       super(arguments...)
+      @health = 3
       @spriteLocation = ((pt) ->
         () ->
           {x: pt.x, y: pt.y, dx: -1 + 0.5, dy: -1, width: 2, height: 2}
       )(_.sample([{x: 14, y: 13}, {x: 12, y: 14}]))
 
-    # @hitbox: {x: -1, y: 0, width: 2, height: 1}
+    chop: () ->
+      @health -= 1
+      if @health <= 0
+        @die()
+        true
+      else
+        false
 
   class House extends Entity
     spriteLocation: () => [

@@ -18,13 +18,18 @@ define [
     rightclickTask: (pt) =>
       entity = @world.entityAt(pt.x, pt.y)
       CONTEXT_TASKS = {
-        Food: {
+        Food:
           task: Task.Eat
           tooltip: "Eat."
-        }
+
         House:
           task: Task.GoHomeAndSleep
           tooltip: "Sleep."
+
+        Tree:
+          task: Task.WalkAndChopTree
+          tooltip: "Cut down."
+
       }
       defaultTask =
         task: Task.WalkNear

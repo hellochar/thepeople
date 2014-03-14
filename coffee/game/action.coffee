@@ -17,10 +17,12 @@ define [
     constructor: (@offset, @direction) ->
       throw "Bad direction" if isNaN(@offset.x) or isNaN(@offset.y)
     perform: (human) =>
-      human.move(@offset)
+      moved = human.move(@offset)
       human.facing = this
       human.hunger += 1
       human.tired += 1
+      if not moved
+        $(this).trigger("failed")
 
   LeftAction = new MoveAction({x: -1, y: 0}, "Left")
   RightAction = new MoveAction({x: 1, y: 0}, "Right")
@@ -49,6 +51,13 @@ define [
 
       human.hunger += .2
 
+  class ChopAction extends Action
+    constructor: (@tree) ->
+    perform: (human) ->
+      @tree.chop()
+      human.tired += 5
+      human.hunger += 3
+
   Action.Consume = ConsumeAction
 
   Action.Directionals = [LeftAction, RightAction, UpAction, DownAction]
@@ -60,5 +69,7 @@ define [
 
   Action.Rest = RestAction
   Action.Sleep = SleepAction
+
+  Action.Chop = ChopAction
 
   return Action
