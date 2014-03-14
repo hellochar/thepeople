@@ -145,7 +145,7 @@ define [
 
     render: () =>
       $html = $(@template(
-        ageString: secondsToStr(@house.age() * (1000 / 20))
+        ageString: secondsToStr(@house.age()))
       ))
       $html
 

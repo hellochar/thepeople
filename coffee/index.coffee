@@ -138,7 +138,7 @@ require [
       @renderer = new Renderer(@world, @cq, this)
       @renderer.lookAt(@world.selection.units[0])
 
-      @minimap = new Minimap(@world)
+      @minimap = new Minimap(@world, @world.playerVision, @renderer)
       @minimap.cq.appendTo(".minimap-container")
 
       @clickbehavior = new ClickBehavior.Default(@world, @keys)
