@@ -141,6 +141,7 @@ define [
     # Only move Entities through this method
     move: (offset) =>
       @setLocation(@x + offset.x, @y + offset.y)
+      @facing = Action.directionalFor(offset)
 
     # returns true or false if the move actually succeeds
     setLocation: (x, y) =>
@@ -399,6 +400,7 @@ define [
       if @currentTask && @currentTask.isComplete()
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
+      # The average action takes .08 seconds
       timeTaken = .08 * (if @tired > 500 then 1 + (@tired - 500) / 125 else 1)
 
       @hunger += timeTaken * .4
@@ -408,16 +410,16 @@ define [
         @affect -= 1
 
       if tiredBefore < 500 and @tired > 500
-        @think("I'm getting really exhausted!", -500)
+        @think("I'm getting really exhausted!", -800)
 
       if tiredBefore < 800 and @tired > 800
-        @think("I'm going to die of exhaustion!!!", -2000)
+        @think("I'm going to die of exhaustion!!!", -5000)
 
       if hungerBefore < 500 and @hunger > 500
-        @think("I'm getting really hungry!", -500)
+        @think("I'm getting really hungry!", -800)
 
       if hungerBefore < 800 and @hunger > 800
-        @think("I'm going to die of hunger!!!", -2000)
+        @think("I'm going to die of hunger!!!", -5000)
 
 
       return timeTaken

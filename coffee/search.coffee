@@ -74,7 +74,7 @@ define [
           {x: to[0] - from[0], y: to[1] - from[1]}
         else if _.isObject(from)
           {x: to.x - from.x, y: to.y - from.y}
-      _.find(Action.Directionals, (direction) -> _.isEqual(direction.offset, offset))
+      Action.directionalFor(offset)
 
     for i in [0...points.length - 1]
       action = findActionFor( points[i], points[i + 1] )
