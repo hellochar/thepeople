@@ -195,7 +195,7 @@ require [
         else
           b: () => makeHumanBuild(human, Entity.House, mousePt)
           q: () => makeHumanBuild(human, Entity.Human, mousePt)
-          z: () => human.die()
+          z: () => $(@world).one("prestep", () -> human.die())
       )(freeHuman)[key]?()
 
     onkeyup: (key) ->

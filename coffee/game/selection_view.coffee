@@ -67,7 +67,7 @@ define [
       """
       <div class="properties">
         <% _.each(properties, function(name) { %>
-          <li> <%= name %> - <%= entity[name] %> </li>
+          <li> <%= name %> - <%= entity[name] | 0%> </li>
         <% }) %>
       </div>
       """

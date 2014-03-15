@@ -32,7 +32,7 @@ define [
 
         @trigger("visionupdate", newlyVisibleTiles, newlyRememberedTiles)
 
-        # to update seenEntities
+        # to update the vision of entities (which can be not seen, remembered, visible)
         # 1. remove entities remembered last frame that *should* be visible now but aren't
         # 2. remove entities remembered last frame but visible now
         # 3. add in entities visible last frame but not visible now
@@ -40,7 +40,8 @@ define [
           # the tile in his location is visible
           shouldSee = _.findWhere(@getVisibleTiles(), _.pick(entity, "x", "y"))?
           isSeeing = _.contains(@getVisibleEntities(), entity)
-          shouldSee and not isSeeing
+          isDead = entity.isDead()
+          shouldSee and not isSeeing or isDead
         )
 
         # O( # of remembered entities ) <-- this is better but could be bad
