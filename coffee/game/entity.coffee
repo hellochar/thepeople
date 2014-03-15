@@ -312,7 +312,7 @@ define [
       1.2 - houseDistance / 20
 
     walkDistanceTo: (entity) =>
-      return 0 if @distanceTo(entity) is 0
+      return @distanceTo(entity) if @distanceTo(entity) < 2
       task = new Task.WalkNear(@, entity.pt())
       task.actions.length || Infinity # make 0 length -> infinity
 
