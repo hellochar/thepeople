@@ -166,10 +166,12 @@ require [
 
     onmousedown: (x, y, button) ->
       pt = @renderer.cellPosition(x, y)
+      tile = @world.map.getCell(pt.x, pt.y).tileInstance
+      entity = @world.entityAt(pt.x, pt.y)
       if button == 2
-        @clickbehavior.onrightclick(pt)
+        @clickbehavior.onrightclick(pt, tile, entity)
       else if button == 0
-        @clickbehavior.onleftclick(pt)
+        @clickbehavior.onleftclick(pt, tile, entity)
 
     onmousemove: (x, y) ->
       @mouseX = x

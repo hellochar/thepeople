@@ -141,7 +141,7 @@ define [
 
       #draw tooltip for currently moused over cell
       mousePt = @cellPosition(mouseX, mouseY, false)
-      @drawTextBox(_.union(["#{cellPt.x}, #{cellPt.y}"], @framework.clickbehavior.tooltip(cellPt)), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
+      @drawTextBox(_.union(["#{cellPt.x}, #{cellPt.y}"], @framework.clickbehavior.tooltip(cellPt, @world.map.getCell(cellPt.x, cellPt.y).tileInstance, @world.entityAt(cellPt.x, cellPt.y))), mousePt.x * @CELL_PIXEL_SIZE, mousePt.y * @CELL_PIXEL_SIZE)
       cq.restore()
 
       $(@world).trigger("postrender")
