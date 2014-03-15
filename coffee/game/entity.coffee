@@ -311,10 +311,23 @@ define [
       houseDistance = @distanceTo(@closestKnown(Entity.House))
       1.2 - houseDistance / 20
 
+    walkDistanceTo: (entity) ->
+      task = new Task.WalkNear(@, entity.pt())
+      task.actions.length
+
+    # Find the entity with minimum euclidean distance
     closestKnown: (entityType) =>
       entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
       if not _.isEmpty(entities)
         _.min(entities, @distanceTo)
+      else
+        null
+
+    # Find the entity with minimum walking distance
+    closestWalkable: (entityType) =>
+      entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
+      if not _.isEmpty(entities)
+        _.min(entities, @walkDistanceTo)
       else
         null
 
@@ -324,7 +337,7 @@ define [
 
       if @hunger > 300
         tasks.push( () =>
-          closestFood = @closestKnown(Food)
+          closestFood = @closestWalkable(Food)
           if closestFood
             @think("I'm hungry. Time to eat!")
             new Task.Eat(this, closestFood)
