@@ -57,6 +57,38 @@ define [
         </div>
         """)
 
+  class BasicPropertiesView extends EntityView
+    constructor: (@entity) -> super(@entity)
+
+    # Subclasses should override properties with an array of strings
+    properties: []
+
+    template: _.template(
+      """
+      <div class="properties">
+        <% _.each(properties, function(name) { %>
+          <li> <%= name %> - <%= entity[name] %> </li>
+        <% }) %>
+      </div>
+      """
+    )
+
+    render: () =>
+      $html = super()
+      $props = $(@template(
+        entity: @entity
+        properties: @properties
+      ))
+      $html.append($props)
+
+      $html
+
+  class TreeView extends BasicPropertiesView
+    properties: ["health"]
+
+  class FoodView extends BasicPropertiesView
+    properties: ["amount"]
+
   class HumanView extends EntityView
     constructor: (@human) ->
       super(@human)
@@ -173,6 +205,8 @@ define [
       {
         Human: HumanView
         House: HouseView
+        Tree: TreeView
+        Food: FoodView
       }[entity.constructor.name] || EntityView
 
 

@@ -6,11 +6,11 @@ define [
     constructor: (@units, @vision, @world) ->
       @units ||= []
       $(@world).on("poststep", () =>
-        @remove(unit) for unit in @units when unit.isDead()
+        @remove(unit) for unit in @units when not @canSelect(unit)
       )
       _.extend(this, Backbone.Events)
 
-    canSelect: (unit) => true
+    canSelect: (unit) => _.contains(@vision.getVisibleEntities(), unit) and not unit.isDead()
 
     add: (unit) ->
       throw "bad" unless @canSelect(unit)
