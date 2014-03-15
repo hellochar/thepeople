@@ -25,12 +25,13 @@ define [
         null
 
   class GiveTaskClickBehavior extends ClickBehavior
-    constructor: (@selection) ->
+    constructor: (@playerVision, @selection) ->
 
     # Returns a task constructor
     # assumes the task constructor takes 2 arguments: [the human, the entity or tile at the given location]
     taskFor: (pt, tile, entity) =>
-      if @selection.units[0] instanceof Entity.Human
+      entityToControl = @selection.units[0]
+      if entityToControl instanceof Entity.Human and entityToControl.vision is @playerVision
         CONTEXT_TASKS = {
           Food:
             task: Task.Eat
@@ -84,7 +85,7 @@ define [
   class DefaultClickBehavior extends LeftAndRightClickBehavior
     constructor: (@world) ->
       left = new SelectingClickBehavior(world.selection)
-      right = new GiveTaskClickBehavior(world.selection)
+      right = new GiveTaskClickBehavior(@world.playerVision, world.selection)
       super(left, right)
 
   ClickBehavior.Default = DefaultClickBehavior

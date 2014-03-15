@@ -44,16 +44,18 @@ define [
 
     el
 
+  # Views are dynamically constructed; first argument of the constructor
+  # must be the Entity which you're looking at
   class EntityView
     constructor: (@entity) ->
 
+    # Should return HTML ( anything usable by jQuery's appendTo() )
     render: () =>
-      $("""
+      $html = $("""
         <div class="#{@entity.constructor.name} view">
-          <h2> #{@entity.constructor.name} <span class="alive-for"> alive for #{@entity.age()}
+          <h2> #{@entity.constructor.name} </h2>
         </div>
         """)
-
 
   class HumanView extends EntityView
     constructor: (@human) ->
@@ -81,7 +83,6 @@ define [
     render: () =>
       # TODO only update the part of the DOM you need to change
       $html = $(@template(
-          # 20 frames per second -> 1000 / 20 milliseconds per frame
           ageString: secondsToStr(@human.age())
           name: @human.name
           affect: @human.affect
@@ -172,7 +173,7 @@ define [
       {
         Human: HumanView
         House: HouseView
-      }[entity.constructor.name]
+      }[entity.constructor.name] || EntityView
 
 
     addView: (entity) =>

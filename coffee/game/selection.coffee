@@ -10,7 +10,7 @@ define [
       )
       _.extend(this, Backbone.Events)
 
-    canSelect: (unit) => unit.vision is @vision
+    canSelect: (unit) => true
 
     add: (unit) ->
       throw "bad" unless @canSelect(unit)
