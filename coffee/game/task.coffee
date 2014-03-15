@@ -201,9 +201,15 @@ define [
     constructor: (@human, @tree) ->
       throw "dead tree!" if @tree.isDead()
       super(@human)
+      @taskIndex = 0
 
     isComplete: () => @tree.isDead()
-    nextAction: () => new Action.Chop(@tree)
+    nextAction: () =>
+      action = switch @taskIndex
+        when 0 then new Action.Chop(@tree)
+        else new Action.Rest()
+      @taskIndex = (@taskIndex + 1) % 17
+      action
 
   class WalkAndChopTree extends TaskList
     constructor: (@human, @tree) ->

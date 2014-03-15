@@ -219,7 +219,7 @@ define [
   class Tree extends Entity
     constructor: () ->
       super(arguments...)
-      @health = 3
+      @health = 25
 
     spriteLocation: () ->
       x: 13
@@ -227,7 +227,7 @@ define [
       spritesheet: "tiles3"
 
     chop: () ->
-      @health -= 1
+      @health -= 10
       if @health <= 0
         @die()
         true
@@ -311,7 +311,7 @@ define [
       houseDistance = @distanceTo(@closestKnown(Entity.House))
       1.2 - houseDistance / 20
 
-    walkDistanceTo: (entity) ->
+    walkDistanceTo: (entity) =>
       task = new Task.WalkNear(@, entity.pt())
       task.actions.length
 
