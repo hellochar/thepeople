@@ -312,8 +312,9 @@ define [
       1.2 - houseDistance / 20
 
     walkDistanceTo: (entity) =>
+      return 0 if @distanceTo(entity) is 0
       task = new Task.WalkNear(@, entity.pt())
-      task.actions.length
+      task.actions.length || Infinity # make 0 length -> infinity
 
     # Find the entity with minimum euclidean distance
     closestKnown: (entityType) =>
@@ -441,7 +442,7 @@ define [
       return timeTaken
 
     relativeSpriteLocation: () =>
-      spriteIdx = (@animationMillis() / 333) % 4 | 0
+      spriteIdx = (@age() * 5) % 4 | 0
       spriteInfo =
         x: [1, 0, 1, 2][spriteIdx]
         y: {Down: 0, Left: 1, Right: 2, Up: 3}[@facing.direction]
