@@ -7,6 +7,7 @@ var require = {
         canvasquery: ['vendor/canvasquery'],
         "dat.gui": 'vendor/dat.gui',
         'canvasquery.framework': ['vendor/canvasquery.framework'],
+        handlebars: ['vendor/handlebars/handlebars.runtime.amd'],
         jquery: ['vendor/jquery-1.9.1.min', '//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min'],
         noise: ['vendor/noise'],
         pathfinding: ['vendor/PathFinding.js/lib/pathfinding-browser'],
