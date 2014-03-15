@@ -21,6 +21,7 @@ define [
 ], (_) ->
   urls = [
     "/images/spritesheets/tiles1.png"
+    "/images/spritesheets/tiles3.png"
     "/images/spritesheets/characters.png"
   ]
 

@@ -220,10 +220,11 @@ define [
     constructor: () ->
       super(arguments...)
       @health = 3
-      @spriteLocation = ((pt) ->
-        () ->
-          {x: pt.x, y: pt.y, dx: -1 + 0.5, dy: -1, width: 2, height: 2}
-      )(_.sample([{x: 14, y: 13}, {x: 12, y: 14}]))
+
+    spriteLocation: () ->
+      x: 13
+      y: 20
+      spritesheet: "tiles3"
 
     chop: () ->
       @health -= 1
@@ -255,7 +256,7 @@ define [
   class Food extends Entity
     constructor: (@x, @y) ->
       super(@x, @y)
-      @amount = 300
+      @amount = 250
 
     consume: (amount) =>
       @amount -= amount
@@ -401,10 +402,12 @@ define [
         # @think("Finished #{@currentTask}!")
         @currentTaskCompleted()
       # The average action takes .08 seconds
-      timeTaken = .08 * (if @tired > 500 then 1 + (@tired - 500) / 125 else 1)
+      timeTaken = .08 * (if @tired > 500 then 2 + (@tired - 500) / 125 else 1)
 
       @hunger += timeTaken * .4
       @tired += timeTaken * .2
+      if @hunger > 500
+        @tired += 3
 
       if @tired > 500
         @affect -= 1
