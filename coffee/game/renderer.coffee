@@ -80,8 +80,7 @@ define [
 
       height = lines.length * (FONT_SIZE + LINE_MARGIN)
       @cq.fillStyle("rgba(255, 255, 255, .5)").strokeStyle("black").roundRect(left, bottom - height, width, height, 5).fill().stroke()
-      @cq.font("normal #{FONT_SIZE}pt arial").fillStyle("black")
-      @cq.fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, lineWidth) for line, idx in lines
+      @cq.fillStyle("black").fillText(line, left + LINE_MARGIN, bottom - idx * (FONT_SIZE + LINE_MARGIN) - LINE_MARGIN / 2, lineWidth) for line, idx in lines
 
     constrainCameraPosition: () =>
       # calculate the top-left corner if the camera was at the very bottom-right
