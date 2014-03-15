@@ -27,7 +27,7 @@ define [
     return seconds + " second" + numberEnding(seconds)  if seconds
     "less then a second" #'just now' //or other string you like;
 
-  renderThought = (unit, thought) =>
+  renderThought = (entity, thought) =>
     color = switch
       when thought.affect < -50 then "red"
       when thought.affect < 0 then "orange"
@@ -35,7 +35,7 @@ define [
       when thought.affect > 0 then "green"
       else "black"
 
-    ageString = secondsToStr((unit.age() - thought.age))
+    ageString = secondsToStr((entity.age() - thought.age))
 
     el = $("<li>")
       .addClass("thought")
@@ -45,7 +45,14 @@ define [
     el
 
   class EntityInfo
-    constructor: (@unit) ->
+    constructor: (@entity) ->
+
+    render: () =>
+      $("""
+        <div class="#{@entity.constructor.name} info">
+          <h2> #{@entity.constructor.name} <span class="alive-for"> alive for #{@entity.age()}
+        </div>
+        """)
 
 
   class HumanInfo extends EntityInfo
@@ -155,22 +162,22 @@ define [
       @$el = $("<div>")
       @world.selection.on("add", @addView)
 
-      @addView(unit) for unit in @world.selection.units
+      @addView(entity) for entity in @world.selection.units
 
-      @world.selection.on("remove", (unit) =>
-        @views = _.reject(@views, (view) -> view.unit is unit)
+      @world.selection.on("remove", (entity) =>
+        @views = _.reject(@views, (view) -> view.entity is entity)
       )
 
-    viewConstructorFor: (unit) =>
+    viewConstructorFor: (entity) =>
       {
         Human: HumanInfo
         House: HouseInfo
-      }[unit.constructor.name]
+      }[entity.constructor.name]
 
 
-    addView: (unit) =>
-      if @viewConstructorFor(unit)
-        view = new (@viewConstructorFor(unit))(unit)
+    addView: (entity) =>
+      if @viewConstructorFor(entity)
+        view = new (@viewConstructorFor(entity))(entity)
         @views.push(view)
 
     render: () =>
@@ -178,7 +185,7 @@ define [
       if not _.isEmpty(@views)
         @$el.append(view.render()) for view in @views
       else
-        @$el.text("Left-click a unit to select it!")
+        @$el.text("Left-click an entity to select it!")
 
 
   UnitInfoHandler
