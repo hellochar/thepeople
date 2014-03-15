@@ -133,9 +133,11 @@ define [
       # draw selection circles
       cq.save()
       for unit in @world.selection.units
-        centerX = (unit.x + .5) * @CELL_PIXEL_SIZE
-        centerY = (unit.y + .5) * @CELL_PIXEL_SIZE
-        cq.strokeStyle("red").lineWidth(3).beginPath().arc(centerX, centerY, @CELL_PIXEL_SIZE * 1.2 / 2, 0, Math.PI * 2).stroke()
+        rect = unit.getHitbox()
+        cellCenter = rect.center()
+        cellRadius = Math.max(rect.width, rect.height) / 2
+
+        cq.strokeStyle("red").lineWidth(3).beginPath().arc(cellCenter.x * @CELL_PIXEL_SIZE, cellCenter.y * @CELL_PIXEL_SIZE, cellRadius * @CELL_PIXEL_SIZE * 1.2, 0, Math.PI * 2).stroke()
       cq.restore()
 
       #draw tooltip for currently moused over cell

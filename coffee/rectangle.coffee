@@ -5,8 +5,13 @@ define [
       @right = @x + @width
       @bottom = @y + @height
 
+    # Constructor; call with Rectangle.bounded()
     @bounded: (left, top, right, bottom) ->
       new Rectangle(left, top, right - left, bottom - top)
+
+    # May not return integer coordinates
+    center: () =>
+      return {x: @x + @width/2, y: @y + @height/2}
 
     within: (x, y) ->
       return (x >= @x && x < @right && y >= @y && y < @bottom)
