@@ -44,24 +44,24 @@ define [
 
     el
 
-  class EntityInfo
+  class EntityView
     constructor: (@entity) ->
 
     render: () =>
       $("""
-        <div class="#{@entity.constructor.name} info">
+        <div class="#{@entity.constructor.name} view">
           <h2> #{@entity.constructor.name} <span class="alive-for"> alive for #{@entity.age()}
         </div>
         """)
 
 
-  class HumanInfo extends EntityInfo
+  class HumanView extends EntityView
     constructor: (@human) ->
       super(@human)
 
     template: _.template(
         """
-        <div class="human info">
+        <div class="human view">
           <h2> <%= name %> <span class="alive-for"> alive for <%= ageString %> </span> </h2>
           <div>
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
@@ -136,7 +136,7 @@ define [
       $html
 
 
-  class HouseInfo extends EntityInfo
+  class HouseView extends EntityView
     constructor: (@house) ->
       super(@house)
 
@@ -156,7 +156,7 @@ define [
       ))
       $html
 
-  class UnitInfoHandler
+  class SelectionView
     constructor: (@world, @renderer) ->
       @views = []
       @$el = $("<div>")
@@ -170,8 +170,8 @@ define [
 
     viewConstructorFor: (entity) =>
       {
-        Human: HumanInfo
-        House: HouseInfo
+        Human: HumanView
+        House: HouseView
       }[entity.constructor.name]
 
 
@@ -188,4 +188,4 @@ define [
         @$el.text("Left-click an entity to select it!")
 
 
-  UnitInfoHandler
+  SelectionView

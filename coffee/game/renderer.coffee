@@ -1,6 +1,6 @@
 define [
-  'game/unitinfo'
-], (UnitInfoHandler) ->
+  'game/selection_view'
+], (SelectionView) ->
   class Renderer
     constructor: (@world, @cq, @framework, @CELL_PIXEL_SIZE = 32) ->
       # Top-left cell coordinates of the viewport
@@ -12,8 +12,8 @@ define [
       @cq.context.webkitImageSmoothingEnabled = false
       @cq.context.mozImageSmoothingEnabled = false
 
-      @unitinfo = new UnitInfoHandler(@world, this)
-      $("#sidebar").append(@unitinfo.$el)
+      @selectionView = new SelectionView(@world, this)
+      $("#sidebar").append(@selectionView.$el)
 
     lookAt: (cellPt) =>
       currentCellPosition = @cellPosition(@cq.canvas.width/2, @cq.canvas.height/2, false)
@@ -119,7 +119,7 @@ define [
       cq.translate(-@camera.x * @CELL_PIXEL_SIZE, -@camera.y * @CELL_PIXEL_SIZE)
       @drawWorld()
 
-      @unitinfo.render()
+      @selectionView.render()
 
       cellPt = @cellPosition(mouseX, mouseY, true)
 
