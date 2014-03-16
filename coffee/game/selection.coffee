@@ -10,7 +10,7 @@ define [
       )
       _.extend(this, Backbone.Events)
 
-    canSelect: (unit) => _.contains(@vision.getVisibleEntities(), unit) and not unit.isDead()
+    canSelect: (unit) => not unit.isDead() and (unit.vision is @vision or _.contains(@vision.getVisibleEntities(), unit))
 
     add: (unit) ->
       throw "bad" unless @canSelect(unit)

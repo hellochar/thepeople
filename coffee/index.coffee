@@ -97,6 +97,8 @@ require [
     starter = world.addEntity(new Entity.Human(house.x, house.y + 1, world.playerVision))
     world.selection.add(starter)
 
+    world.stepAll(0)
+
     world
 
   setupDebug = (framework) ->

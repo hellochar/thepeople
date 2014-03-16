@@ -85,26 +85,15 @@ define [
 
     # Returns the closest point to wantedPt that the entity can occupy
     # Used in teleports and entity adding
-    closestAvailableSpot: (entity, wantedPt = entity.pt()) ->
-      # keep a fringe of possible spots that you haven't checked yet; this fringe
-      # is sorted by distance so the closest ones will always be popped off first (it's a queue)
-      #
-      queue = [wantedPt]
-      visited = {} # keys are JSON.stringify({x, y}) objects
-      while not _.isEmpty(queue)
-        pt = queue.shift()
-
-        continue if visited[JSON.stringify(pt)]
-        visited[JSON.stringify(pt)] = true
-
-        if @hasRoomFor(entity, pt.x, pt.y)
-          return pt
-        else
-          for action in Action.Directionals
-            nextPt = {x: pt.x + action.offset.x, y: pt.y + action.offset.y}
-            queue.push(nextPt)
-
-      return null
+    closestAvailableSpot: (entity, wantedPt = entity.pt()) =>
+      path = Search.bfs(
+        start: wantedPt
+        goalPredicate: (pt) => @hasRoomFor(entity, pt.x, pt.y)
+        successors: (pt) =>
+          {x: pt.x + action.offset.x, y: pt.y + action.offset.y} for action in Action.Directionals
+        hashFunction: (pt) -> JSON.stringify(pt)
+      )
+      return _.last(path)
 
     # Assumes entity is in world
     # Returns the closest location to wantedPt that entity can walk to, within maxDepth distance to wantedPt

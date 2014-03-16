@@ -48,7 +48,17 @@ define [
 
     toString: () => @subtasks.join(", and then ")
 
-  # Walk towards a
+  # This task tries to get the human as close as possible to the given point while
+  # maintaing decent performance. This Task is responsible for:
+  #
+  # Finding a path that will get the human reasonably close to the given point
+  # if the point cannot be walked directly into
+  #
+  # refinding a path in case the one it had found failed
+  #
+  # It currently does *not* change courses if a new, better path has been
+  # established since the task was assigned
+  #
   class WalkNear extends Task
     lineRasterize = (start, end) ->
       #create a list to store all of the line segment's points in

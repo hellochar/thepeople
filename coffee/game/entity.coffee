@@ -1,9 +1,10 @@
 define [
   'rectangle'
+  'search'
   'game/action'
   'game/task'
   'game/drawable'
-], (Rectangle, Action, Task, Drawable) ->
+], (Rectangle, Search, Action, Task, Drawable) ->
 
   FEMALE_NAMES = [
     "Genoveva"
@@ -308,13 +309,24 @@ define [
     getSafetyLevel: () =>
       # How safe this person feels; 1+ is safe, 0 is some danger, -1 is unsafe
       # Safety is correlated to being close to home (TODO: and by being near other people)
-      houseDistance = @distanceTo(@closestKnown(Entity.House))
-      1.2 - houseDistance / 20
+      house = @closestKnown(Entity.House)
+      if house
+        houseDistance = @distanceTo(house)
+        1.2 - houseDistance / 20
+      else
+        -10
 
+    # Returns the distance of the shortest path to go from you to the entity
     walkDistanceTo: (entity) =>
       return @distanceTo(entity) if @distanceTo(entity) < 2
-      task = new Task.WalkNear(@, entity.pt())
-      task.actions.length || Infinity # make 0 length -> infinity
+      try
+        path = Search.findPathTo(@, entity.pt(), true)
+        return path.length || Infinity
+      catch err
+        if err is Search.NoSolution
+          Infinity
+        else
+          throw err
 
     # Find the entity with minimum euclidean distance
     closestKnown: (entityType) =>

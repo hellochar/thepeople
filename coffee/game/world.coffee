@@ -23,6 +23,7 @@ define [
 
     addEntity: (entity) =>
       newLoc = @map.closestAvailableSpot(entity)
+      throw "oh god no" if not newLoc
       entity.x = newLoc.x
       entity.y = newLoc.y
       console.log("#{entity} still cannot be put there!") unless @map.hasRoomFor(entity)
