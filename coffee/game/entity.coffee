@@ -120,6 +120,11 @@ define [
     "Lacy"
   ]
 
+  # Subclasses should implement:
+  #   initialize()
+  #   hitbox()
+  #   step()
+  #   spriteLocation()
   class Entity extends Drawable
     constructor: (@x, @y, @vision, @properties = {}) ->
       super(@x, @y)
@@ -165,7 +170,11 @@ define [
       _.filter(@thoughts, (thought) => @age() - thought.age < 10)[0...20]
 
     # Returns the number of frames this entity has been alive for
-    age: () => @world.age - @birth
+    age: () =>
+      if @world
+        @world.age - @birth
+      else
+        0
 
     emitsVision: () => @vision and @sightRange?
 
@@ -197,11 +206,11 @@ define [
 
     # optionally, declare a hitbox VALUE on the class
     # hitbox is an {x, y, width, height} which specifies how far left and up the hitbox should go, and its width/height (by default 1/1)
-    @hitbox: {x: 0, y: 0, width: 1, height: 1}
+    hitbox: () => {x: 0, y: 0, width: 1, height: 1}
 
     # returns a (x, y, width, height) associated with a specified pt (by default this Entity's location)
     getHitbox: (x = @x, y = @y) =>
-      hitbox = @constructor.hitbox
+      hitbox = @hitbox()
       new Rectangle(x + hitbox.x, y + hitbox.y, hitbox.width || 1, hitbox.height || 1)
 
     canOccupy: (x, y) =>
@@ -252,7 +261,7 @@ define [
               { x: @x, y: @y + 1}]
       _.filter(beds, (pt) => @world.map.canOccupy(human, pt.x, pt.y))
 
-    @hitbox: {x: -1, y: -1, width: 2, height: 2}
+    hitbox: () => {x: -1, y: -1, width: 2, height: 2}
 
   class Food extends Entity
     constructor: (@x, @y) ->
@@ -267,6 +276,33 @@ define [
     spriteLocation: () =>
       x: 14
       y: 15
+
+
+  # entity property
+  #   shouldn't exist in the world
+  #   not null
+  #   entity.vision is this vision
+  class BluePrint extends Entity
+    initialize: (properties) =>
+      @entity = properties.entity
+      # set the entity's location to where I am
+      @entity.x = @x
+      @entity.y = @y
+      @turnsLeft = @entity.constructor.buildCost || 25
+
+    build: () =>
+        @turnsLeft -= 1
+        if not @turnsLeft
+          @die()
+          $(@world).one("poststep", () =>
+            if not @world.map.hasRoomFor(@entity)
+              throw "BluePrint adding entity but entity can't fit!"
+            @world.addEntity(@entity)
+          )
+
+    spriteLocation: () => @entity.spriteLocation()
+
+    hitbox: () => (@entity || @properties.entity).hitbox()
 
 
   class Human extends Entity
@@ -340,7 +376,8 @@ define [
     closestWalkable: (entityType) =>
       entities = _.filter(@getKnownEntities(), (e) -> e instanceof entityType)
       if not _.isEmpty(entities)
-        _.min(entities, @walkDistanceTo)
+        closestEntity = _.min(entities, @walkDistanceTo)
+        if closestEntity is Infinity then null else closestEntity
       else
         null
 
@@ -457,19 +494,22 @@ define [
       spriteIdx = (@age() * 5) % 4 | 0
       spriteInfo =
         x: [1, 0, 1, 2][spriteIdx]
-        y: {Down: 0, Left: 1, Right: 2, Up: 3}[@facing.direction]
+        y: {Down: 0, Left: 1, Right: 2, Up: 3}[@facing?.direction || "Down"]
         spritesheet: "characters"
 
-      if not (@currentAction instanceof Action.Rest) and not (@currentAction instanceof Action.Sleep)
-        spriteInfo.dx = @facing.offset.x * .2
-        spriteInfo.dy = @facing.offset.y * .2
+      # If we're being built, we don't exist in the world but need to return
+      # a valid sprite
+      if @world
+        if not (@currentAction instanceof Action.Rest) and not (@currentAction instanceof Action.Sleep)
+          spriteInfo.dx = @facing.offset.x * .2
+          spriteInfo.dy = @facing.offset.y * .2
 
-      if @currentAction instanceof Action.Sleep
-        spriteInfo = _.extend(spriteInfo,
-          x: 1
-          y: 2
-          rotation: 90
-        )
+        if @currentAction instanceof Action.Sleep
+          spriteInfo = _.extend(spriteInfo,
+            x: 1
+            y: 2
+            rotation: 90
+          )
 
       spriteInfo
 
@@ -507,5 +547,6 @@ define [
   Entity.Food = Food
   Entity.Human = Human
   Entity.Tree = Tree
+  Entity.BluePrint = BluePrint
 
   return Entity

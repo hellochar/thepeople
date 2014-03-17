@@ -53,7 +53,7 @@ define [
     render: () =>
       $html = $("""
         <div class="#{@entity.constructor.name} view">
-          <h2> #{@entity.constructor.name} </h2>
+          <h2 class="name"> #{@entity.constructor.name} </h2>
         </div>
         """)
 
@@ -88,6 +88,14 @@ define [
 
   class FoodView extends BasicPropertiesView
     properties: ["amount"]
+
+  class BluePrintView extends BasicPropertiesView
+    properties: ["turnsLeft"]
+
+    render: () =>
+      $html = super()
+      $html.find(".name").append("<span> of #{@entity.entity.constructor.name}</span>")
+      $html
 
   class HumanView extends EntityView
     constructor: (@human) ->
@@ -207,6 +215,7 @@ define [
         House: HouseView
         Tree: TreeView
         Food: FoodView
+        BluePrint: BluePrintView
       }[entity.constructor.name] || EntityView
 
 

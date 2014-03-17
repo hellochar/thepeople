@@ -156,10 +156,12 @@ define [
     isComplete: () => @human.tired <= 0
     nextAction: () => new Action.Sleep()
 
+  # Makes a human build a blueprint, assuming that the human is neighboring it
+  # errors if s/he isn't
   class Build extends Task
-    constructor: (@human, @entity) ->
+    constructor: (@human, @blueprint) ->
       super(@human)
-      throw "Bad entity" if not @entity
+      throw "Bad blueprint" if not @blueprint
       # Optimally we would have a "tryBuild" method that returns
       # the Build task if successful, or otherwise returns null
       #
@@ -171,32 +173,26 @@ define [
       # and then the protocol is to have Task constructors throw BadTask
       #
       # instead we'll just ad-hoc some way to not actually "build" the building for now
-      @turnsLeft = @entity.constructor.buildCost || 25
 
     class BuildAction extends Action
-      constructor: (@buildTask) ->
+      constructor: (@blueprint) ->
       perform: (human) ->
-        @buildTask.turnsLeft -= 1
+        @blueprint.build()
         human.tired += 2
         human.hunger += 1
-        if @buildTask.isComplete()
-          entity = @buildTask.entity
-          human.world.addEntity(entity)
 
-    isComplete: () => @turnsLeft == 0
+    isComplete: () => @blueprint.isDead()
     nextAction: () =>
-      if not @human.world.map.hasRoomFor(@entity)
-        @cancel("No room to build #{@entity.constructor.name}!")
-      if not @entity.isNeighbor(@human)
+      if not @blueprint.isNeighbor(@human)
         @cancel("#{@human.constructor.name} cannot reach building!")
-      new BuildAction(this)
+      new BuildAction(@blueprint)
 
-    toString: () => "#{super()} a #{@entity.constructor.name}"
+    toString: () => "Building a #{@entity.constructor.name}"
 
-  # Walk to an unplaced Entity and Build it
+  # Walk to a blueprint and Build it
   class Construct extends TaskList
-    constructor: (@human, @entity) ->
-      super(@human, [new WalkUntilNextTo(@human, @entity), new Build(@human, @entity)])
+    constructor: (@human, @blueprint) ->
+      super(@human, [new WalkUntilNextTo(@human, @blueprint), new Build(@human, @blueprint)])
 
     # thought: () => "Constructing a #{@entity.constructor.name}!"
 

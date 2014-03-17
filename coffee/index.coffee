@@ -186,7 +186,10 @@ require [
       @keys[key] = true
 
       makeHumanBuild = (human, type, pt) ->
-        human.setCurrentTask(new Task.Construct(human, construct(type, [pt.x, pt.y, human.vision])))
+        entity = construct(type, [pt.x, pt.y, human.vision])
+        blueprint = new Entity.BluePrint(pt.x, pt.y, human.vision, {entity: entity})
+        human.world.addEntity(blueprint)
+        human.setCurrentTask(new Task.Construct(human, blueprint))
 
       mousePt = @renderer.cellPosition(@mouseX, @mouseY)
 

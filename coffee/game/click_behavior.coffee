@@ -45,6 +45,10 @@ define [
             task: Task.WalkAndChopTree
             tooltip: "Cut down."
 
+          BluePrint:
+            task: Task.Construct
+            tooltip: "Build."
+
         }
         defaultTask =
           task: Task.WalkNear
