@@ -126,7 +126,7 @@ define [
   #   step()
   #   spriteLocation()
   class Entity extends Drawable
-    constructor: (@x, @y, @vision, @properties = {}) ->
+    constructor: (@x, @y, @vision, properties = {}) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
       # array of {age: age(), thought: string}
@@ -139,10 +139,16 @@ define [
       # Sleeping from 300 tired gives +300 affect
       # Eating 300 food gives 150 affect
       @affect = 0
+      @initialize(properties)
 
-
-    # Put your code in initialize(properites) =>
+    # Put constructor/initialization code here
     # initialize: (properties) =>
+
+    # onbirth gets called when this entity actually gets put into the world
+    # world == @world
+    onbirth: (world) ->
+
+    ondeath: (world) ->
 
     # Only move Entities through this method
     move: (offset) =>
@@ -302,7 +308,7 @@ define [
 
     spriteLocation: () => @entity.spriteLocation()
 
-    hitbox: () => (@entity || @properties.entity).hitbox()
+    hitbox: () => @entity.hitbox()
 
 
   class Human extends Entity
@@ -328,6 +334,7 @@ define [
       # The class of where you're facing
       @facing = Action.Down
 
+    onbirth: (world) ->
       $(@world).on("poststep", () =>
         if @hunger > 1000 or @tired > 1000
           @die()

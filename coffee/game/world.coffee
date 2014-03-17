@@ -33,9 +33,7 @@ define [
       entity.vision.addVisibilityEmitter(entity) if entity.emitsVision()
       @map.notifyEntering(entity)
       @entityQueue.enqueue(entity, @age) if entity.step
-      properties = entity.properties
-      delete entity.properties
-      entity.initialize(properties)
+      entity.onbirth(this)
       entity
 
     removeEntity: (entity) =>
@@ -44,6 +42,7 @@ define [
       entity.vision.removeVisibilityEmitter(entity) if entity.emitsVision()
       @entityQueue.removeEntity(entity)
       @map.notifyLeaving(entity)
+      entity.ondeath(this)
       entity
 
     withinMap: (x, y) => @map.withinMap(x, y)
