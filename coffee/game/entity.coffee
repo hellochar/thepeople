@@ -157,15 +157,20 @@ define [
 
     # returns true or false if the move actually succeeds
     setLocation: (x, y) =>
-      if @canOccupy(x, y)
-        @world.map.notifyLeaving(@)
+      if @world
+        if @canOccupy(x, y)
+          @world.map.notifyLeaving(@)
+          @x = x
+          @y = y
+          @world.map.notifyEntering(@)
+          @checkConsistency()
+          true
+        else
+          false
+      else
         @x = x
         @y = y
-        @world.map.notifyEntering(@)
-        @checkConsistency()
         true
-      else
-        false
 
     think: (str, affect = 0) =>
       @thoughts.unshift({age: @age(), thought: str, affect: affect})
@@ -292,21 +297,29 @@ define [
     initialize: (properties) =>
       @entity = properties.entity
       # set the entity's location to where I am
-      @entity.x = @x
-      @entity.y = @y
       @turnsLeft = @entity.constructor.buildCost || 25
+      tint = (location) -> _.extend(_.clone(location),
+        preprocess: (cq) ->
+          cq.shiftHsl(null, -1.0, -.15)
+      )
+      entityLocation = @entity.spriteLocation()
+      if _.isArray(entityLocation)
+        mySprite = (tint(location) for location in entityLocation)
+      else
+        mySprite = tint(entityLocation)
+      @spriteLocation = () ->
+        mySprite
 
     build: () =>
         @turnsLeft -= 1
         if not @turnsLeft
           @die()
           $(@world).one("poststep", () =>
-            if not @world.map.hasRoomFor(@entity)
-              throw "BluePrint adding entity but entity can't fit!"
+            @entity.setLocation(@x, @y)
             @world.addEntity(@entity)
           )
 
-    spriteLocation: () => @entity.spriteLocation()
+    # spriteLocation: () => @entity.spriteLocation()
 
     hitbox: () => @entity.hitbox()
 
