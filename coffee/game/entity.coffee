@@ -129,16 +129,6 @@ define [
     constructor: (@x, @y, @vision, properties = {}) ->
       super(@x, @y)
       @sightRange = @constructor.sightRange
-      # array of {age: age(), thought: string}
-      @thoughts = []
-
-      # A number ranging from ~ -5000 to ~5000 denoting this unit's happiness, or mood
-      # Things like eating and sleeping help affect
-      # Not finding food, walking while tired, etc. hurt affect
-      #
-      # Sleeping from 300 tired gives +300 affect
-      # Eating 300 food gives 150 affect
-      @affect = 0
       @initialize(properties)
 
     # Put constructor/initialization code here
@@ -171,14 +161,6 @@ define [
         @x = x
         @y = y
         true
-
-    think: (str, affect = 0) =>
-      @thoughts.unshift({age: @age(), thought: str, affect: affect})
-      @affect += affect
-
-    # Get all thoughts in the past 100 steps (about 10 seconds), limited to 20
-    getRecentThoughts: () =>
-      _.filter(@thoughts, (thought) => @age() - thought.age < 10)[0...20]
 
     # Returns the number of frames this entity has been alive for
     age: () =>
@@ -238,9 +220,8 @@ define [
     # step: () => 1
 
   class Tree extends Entity
-    constructor: () ->
-      super(arguments...)
-      @health = 25
+    initialize: (properties) =>
+      @health = properties.health || 25
 
     spriteLocation: () ->
       x: 13
@@ -275,9 +256,8 @@ define [
     hitbox: () => {x: -1, y: -1, width: 2, height: 2}
 
   class Food extends Entity
-    constructor: (@x, @y) ->
-      super(@x, @y)
-      @amount = 250
+    initialize: (properties) =>
+      @amount = properties.amount || 250
 
     consume: (amount) =>
       @amount -= amount
@@ -287,7 +267,6 @@ define [
     spriteLocation: () =>
       x: 14
       y: 15
-
 
   # entity property
   #   shouldn't exist in the world
@@ -329,8 +308,18 @@ define [
 
     initialize: (properties) =>
       @gender = properties.gender || if Math.random() < .5 then "male" else "female"
-
       @name = properties.name || _.sample({male: MALE_NAMES, female: FEMALE_NAMES}[@gender])
+
+      # array of {age: age(), thought: string}
+      @thoughts = []
+
+      # A number ranging from ~ -5000 to ~5000 denoting this unit's happiness, or mood
+      # Things like eating and sleeping help affect
+      # Not finding food, walking while tired, etc. hurt affect
+      #
+      # Sleeping from 300 tired gives +300 affect
+      # Eating 300 food gives 150 affect
+      @affect = 0
 
       # How hungry you are.
       @hunger = 0
@@ -352,6 +341,15 @@ define [
         if @hunger > 1000 or @tired > 1000
           @die()
       )
+
+    think: (str, affect = 0) =>
+      @thoughts.unshift({age: @age(), thought: str, affect: affect})
+      @affect += affect
+
+    # Get all thoughts in the past 100 steps (about 10 seconds), limited to 20
+    getRecentThoughts: () =>
+      _.filter(@thoughts, (thought) => @age() - thought.age < 10)[0...20]
+
 
     getVisibleTiles: () =>
       @vision.getVisibleTiles()
