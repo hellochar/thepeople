@@ -75,17 +75,14 @@ define [
 
   class SleepAction extends Action
     perform: (human) ->
+      human.tired -= 3
+      human.hunger += .2
       safetyLevel = human.getSafetyLevel()
       if safetyLevel > 1
-        human.tired -= 3
         human.affect += 3
       else if safetyLevel >= 0
-        human.tired -= 3
       else if safetyLevel < -1
-        human.tired -= 1.5
         human.affect -= 3
-
-      human.hunger += .2
 
   class ChopAction extends SubjectAction
     constructor: (@tree) -> super(@tree)

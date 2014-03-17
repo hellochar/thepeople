@@ -214,7 +214,7 @@ define [
       action = switch @taskIndex
         when 0 then new Action.Chop(@tree)
         else new Action.Rest()
-      @taskIndex = (@taskIndex + 1) % 17
+      @taskIndex = (@taskIndex + 1) % 8
       action
 
   class WalkAndChopTree extends TaskList
