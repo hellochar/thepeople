@@ -48,14 +48,18 @@ define [
   # must be the Entity which you're looking at
   class EntityView
     constructor: (@entity) ->
+      @$el = @constructHTML()
 
-    # Should return HTML ( anything usable by jQuery's appendTo() )
-    render: () =>
-      $html = $("""
+    constructHTML: () =>
+      $("""
         <div class="#{@entity.constructor.name} view">
           <h2 class="name"> #{@entity.constructor.name} </h2>
         </div>
-        """)
+        """
+      )
+
+    # Call this to update @$el to accurately reflect the current Entity's state
+    render: () =>
 
   class BasicPropertiesView extends EntityView
     constructor: (@entity) -> super(@entity)
@@ -63,25 +67,23 @@ define [
     # Subclasses should override properties with an array of strings
     properties: []
 
-    template: _.template(
-      """
+    constructHTML: () =>
+      $html = super()
+      $html.append("""
       <div class="properties">
-        <% _.each(properties, function(name) { %>
-          <li> <%= name %> - <%= entity[name] | 0%> </li>
-        <% }) %>
       </div>
       """
-    )
+      )
+      $html
 
     render: () =>
-      $html = super()
-      $props = $(@template(
+      $props = $(_.template(""" <% _.each(properties, function(name) { %>
+          <li> <%= name %> - <%= entity[name] | 0%> </li>
+        <% }) %>""",
         entity: @entity
         properties: @properties
-      ))
-      $html.append($props)
-
-      $html
+      ).trim())
+      @$el.find(".properties").empty().append($props)
 
   class TreeView extends BasicPropertiesView
     properties: ["health"]
@@ -100,51 +102,41 @@ define [
   class HumanView extends EntityView
     constructor: (@human) ->
       super(@human)
+      @$el = @constructHTML()
 
-    template: _.template(
-        """
+    constructHTML: () =>
+      $("""
         <div class="human view">
-          <h2> <%= name %> <span class="alive-for"> alive for <%= ageString %> </span> </h2>
+          <h2 class="name"> <span>#{@human.name}</span>  <span class="alive-for"></span> </h2>
+          <div class="actions">
+            <button id="build">Build</button>
+          </div>
           <div>
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
             <p> Tired: <span class="tired indicator-bar"><span></span></span> </p>
             <p> Happiness: <span class="affect indicator-bar"><span></span></span> </p>
-            <p> Safety: <%= safety %> </p>
+            <p> Safety: <span class="safety"></span> </p>
 
-            <h3> Current Task: <span class="text-muted"> <%= currentTaskString %> </span> </h3>
+            <h3> Current Task: <span class="text-muted current-task"> </span> </h3>
 
             <h3> Thoughts </h3>
             <div class="thoughts"></div>
           </div>
         </div>
         """
-    )
+      )
 
     render: () =>
+      @$el.find(".alive-for").text("alive for " + secondsToStr(@human.age()))
+      @$el.find(".safety").text(@human.getSafetyLevel())
+      @$el.find(".current-task").text(@human.currentTask?.toString() || "Nothing")
       # TODO only update the part of the DOM you need to change
-      $html = $(@template(
-          ageString: secondsToStr(@human.age())
-          name: @human.name
-          affect: @human.affect
-          safety: @human.getSafetyLevel()
-          currentTaskString: @human.currentTask?.toString() || "Nothing"
-          thoughts: _.map(@human.getRecentThoughts(), (thought) =>
-            thought: thought.thought
-            ageString: secondsToStr(@human.age() - thought.age)
-            color: switch
-              when thought.affect < -50 then "red"
-              when thought.affect < 0 then "orange"
-              when thought.affect is 0 then "black"
-              when thought.affect > 0 then "green"
-              else "black"
-          )
-      ))
       hungerColor = switch
         when @human.hunger < 300 then "lightgreen"
         when @human.hunger < 600 then "yellow"
         when @human.hunger < 800 then "orange"
         else "red"
-      $html.find(".hunger.indicator-bar span").css(
+      @$el.find(".hunger.indicator-bar span").css(
         width: @human.hunger / 1000 * 100 + "%"
         "background-color": hungerColor
       )
@@ -154,7 +146,7 @@ define [
         when @human.tired < 600 then "yellow"
         when @human.tired < 800 then "orange"
         else "red"
-      $html.find(".tired.indicator-bar span").css(
+      @$el.find(".tired.indicator-bar span").css(
         width: @human.tired / 1000 * 100 + "%"
         "background-color": tiredColor
       )
@@ -166,15 +158,14 @@ define [
         when @human.affect < 2000 then "lightgreen"
         when @human.affect < 4000 then "green"
         else "darkgreen"
-      $html.find(".affect.indicator-bar span").css(
+      @$el.find(".affect.indicator-bar span").css(
         width: (@human.affect + 5000) / 10000 * 100 + "%"
         "background-color": happinessColor
       )
 
+      @$el.find(".thoughts").empty()
       for thought in @human.getRecentThoughts()
-        $html.find(".thoughts").append(renderThought(@human, thought))
-
-      $html
+        @$el.find(".thoughts").append(renderThought(@human, thought))
 
 
   class HouseView extends EntityView
@@ -201,13 +192,10 @@ define [
     constructor: (@world, @renderer) ->
       @views = []
       @$el = $("<div>")
-      @world.selection.on("add", @addView)
-
       @addView(entity) for entity in @world.selection.units
 
-      @world.selection.on("remove", (entity) =>
-        @views = _.reject(@views, (view) -> view.entity is entity)
-      )
+      @world.selection.on("add", @addView)
+      @world.selection.on("remove", @removeView)
 
     viewConstructorFor: (entity) =>
       {
@@ -223,11 +211,16 @@ define [
       if @viewConstructorFor(entity)
         view = new (@viewConstructorFor(entity))(entity)
         @views.push(view)
+        @$el.append(view.$el)
+
+    removeView: (entity) =>
+      view = _.findWhere(@views, {entity: entity})
+      @views = _.without(@views, view)
+      view.$el.remove()
 
     render: () =>
-      @$el.empty()
       if not _.isEmpty(@views)
-        @$el.append(view.render()) for view in @views
+        view.render() for view in @views
       else
         @$el.text("Left-click an entity to select it!")
 

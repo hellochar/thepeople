@@ -187,7 +187,7 @@ define [
         @cancel("#{@human.constructor.name} cannot reach building!")
       new BuildAction(@blueprint)
 
-    toString: () => "Building a #{@entity.constructor.name}"
+    toString: () => "Building a #{@human.constructor.name}"
 
   # Walk to a blueprint and Build it
   class Construct extends TaskList
