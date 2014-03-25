@@ -488,7 +488,7 @@ define [
       @hunger += timeTaken * .4
       @tired += timeTaken * .2
       if @hunger > 500
-        @tired += 3
+        @tired += 1
 
       if @tired > 500
         @affect -= 1

@@ -75,7 +75,7 @@ define [
 
   class SleepAction extends Action
     perform: (human) ->
-      human.tired -= 3
+      human.tired -= 4
       human.hunger += .2
       safetyLevel = human.getSafetyLevel()
       if safetyLevel > 1
