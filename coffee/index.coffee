@@ -151,7 +151,7 @@ require [
       if @world.playerVision.isSurviving()
         @world.stepAll(Math.min(delta / 1000, 1)) # Step for a maximum of 1 second
         if not @world.playerVision.isSurviving()
-          overlay("You died! You survived for #{@world.age | 0} seconds. Your performance is: ")
+          overlay("You died! You survived for #{@world.age | 0} seconds.")
 
     stepRate: 20
 

@@ -109,7 +109,9 @@ define [
         <div class="human view">
           <h2 class="name"> <span>#{@human.name}</span>  <span class="alive-for"></span> </h2>
           <div class="actions">
-            <button id="build">Build</button>
+            <p>q - Build human</p>
+            <p>b - Build house</p>
+            <p>z - Remove from game</p>
           </div>
           <div>
             <p> Hunger: <span class="hunger indicator-bar"><span></span></span> </p>
